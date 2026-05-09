@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "tee_times" ADD COLUMN     "lat" DOUBLE PRECISION,
+ADD COLUMN     "lon" DOUBLE PRECISION;
