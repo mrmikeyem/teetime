@@ -18,13 +18,14 @@ export default function RegisterPage() {
     const formData = new FormData(e.currentTarget);
     const firstName = (formData.get("firstName") as string).trim();
     const lastName = (formData.get("lastName") as string).trim();
+    const email = (formData.get("email") as string).trim();
     const phone = (formData.get("phone") as string).trim();
     const password = formData.get("password") as string;
 
     const res = await fetch("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ firstName, lastName, phone, password }),
+      body: JSON.stringify({ firstName, lastName, email, phone, password }),
     });
 
     if (!res.ok) {
@@ -93,6 +94,21 @@ export default function RegisterPage() {
                 className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
               />
             </div>
+          </div>
+
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium">
+              Email
+            </label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              required
+              autoComplete="email"
+              placeholder="you@example.com"
+              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm lowercase focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
+            />
           </div>
 
           <div>
