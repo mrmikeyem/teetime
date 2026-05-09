@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useRef, useState } from "react";
+import { Suspense, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { MemberPicker, type PickerUser } from "../member-picker";
 import { WeatherPreview } from "./weather-preview";
@@ -16,6 +16,14 @@ const COURSE_SHORTCUTS = [
 ];
 
 export default function NewTeeTimePage() {
+  return (
+    <Suspense>
+      <NewTeeTimeForm />
+    </Suspense>
+  );
+}
+
+function NewTeeTimeForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialDate = searchParams.get("date") ?? "";
