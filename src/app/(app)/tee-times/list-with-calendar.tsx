@@ -10,7 +10,7 @@ export type TeeTimeListItem = {
   teeOffAt: string;
   partySize: number;
   creatorName: string;
-  members: { userName: string; confirmed: boolean }[];
+  members: { name: string; confirmed: boolean }[];
   weather: { tempF: number; icon: string } | null;
 };
 
@@ -94,7 +94,7 @@ export function ListWithCalendar({
                     <span className="truncate text-gray-500">
                       {t.members.length === 0
                         ? "no one yet"
-                        : t.members.map((m) => m.userName).join(", ")}
+                        : t.members.map((m) => m.name).join(", ")}
                     </span>
                   </div>
                 </Link>

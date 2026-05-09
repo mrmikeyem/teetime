@@ -27,7 +27,8 @@ export default async function TeeTimeDetailPage({
       creator: { select: { id: true, name: true } },
       members: {
         include: {
-          user: { select: { id: true, name: true, isStub: true } },
+          user: { select: { id: true, name: true } },
+          guest: { select: { id: true, name: true } },
           adder: { select: { id: true, name: true } },
         },
         orderBy: { createdAt: "asc" },
@@ -37,7 +38,13 @@ export default async function TeeTimeDetailPage({
 
   if (!teeTime) notFound();
 
-  const memberIds = teeTime.members.map((m) => m.userId);
+  const excludeUserIds = teeTime.members
+    .map((m) => m.userId)
+    .filter((id): id is string => id !== null);
+  const excludeGuestIds = teeTime.members
+    .map((m) => m.guestId)
+    .filter((id): id is string => id !== null);
+
   const confirmedCount = teeTime.members.filter((m) => m.confirmed).length;
   const overCapacity = teeTime.members.length > teeTime.partySize;
   const tooManyConfirmed = confirmedCount > teeTime.partySize;
@@ -103,24 +110,36 @@ export default async function TeeTimeDetailPage({
           <p className="text-sm text-gray-500">No one signed up yet.</p>
         ) : (
           <ul className="space-y-2">
-            {teeTime.members.map((m) => (
-              <MemberRow
-                key={m.id}
-                teeTimeId={teeTime.id}
-                userId={m.userId}
-                name={m.user.name}
-                isStub={m.user.isStub}
-                confirmed={m.confirmed}
-                addedByLabel={
-                  m.adder.id === m.user.id ? "self" : m.adder.name
-                }
-              />
-            ))}
+            {teeTime.members.map((m) => {
+              const isUser = m.userId !== null && m.user;
+              const displayName = isUser ? m.user!.name : m.guest!.name;
+              const memberKind: "user" | "guest" = isUser ? "user" : "guest";
+              const memberId = isUser ? m.userId! : m.guestId!;
+              const addedByLabel =
+                isUser && m.adder.id === m.userId ? "self" : m.adder.name;
+
+              return (
+                <MemberRow
+                  key={m.id}
+                  teeTimeId={teeTime.id}
+                  memberKind={memberKind}
+                  memberId={memberId}
+                  name={displayName}
+                  isGuest={!isUser}
+                  confirmed={m.confirmed}
+                  addedByLabel={addedByLabel}
+                />
+              );
+            })}
           </ul>
         )}
       </section>
 
-      <AddMember teeTimeId={teeTime.id} excludeIds={memberIds} />
+      <AddMember
+        teeTimeId={teeTime.id}
+        excludeUserIds={excludeUserIds}
+        excludeGuestIds={excludeGuestIds}
+      />
 
       <div className="flex justify-end border-t border-gray-200 pt-4">
         <DeleteButton teeTimeId={teeTime.id} />

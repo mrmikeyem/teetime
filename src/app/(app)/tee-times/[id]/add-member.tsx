@@ -2,24 +2,29 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { MemberPicker, type PickerUser } from "../member-picker";
+import { MemberPicker, type PickerItem } from "../member-picker";
 
 export function AddMember({
   teeTimeId,
-  excludeIds,
+  excludeUserIds,
+  excludeGuestIds,
 }: {
   teeTimeId: string;
-  excludeIds: string[];
+  excludeUserIds: string[];
+  excludeGuestIds: string[];
 }) {
   const router = useRouter();
   const [error, setError] = useState("");
 
-  async function handlePick(user: PickerUser) {
+  async function handlePick(item: PickerItem) {
     setError("");
+    const body =
+      item.kind === "user" ? { userId: item.id } : { guestId: item.id };
+
     const res = await fetch(`/api/tee-times/${teeTimeId}/members`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: user.id }),
+      body: JSON.stringify(body),
     });
 
     if (!res.ok) {
@@ -41,7 +46,11 @@ export function AddMember({
           {error}
         </div>
       )}
-      <MemberPicker excludeIds={excludeIds} onPick={handlePick} />
+      <MemberPicker
+        excludeUserIds={excludeUserIds}
+        excludeGuestIds={excludeGuestIds}
+        onPick={handlePick}
+      />
     </div>
   );
 }

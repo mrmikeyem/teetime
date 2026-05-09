@@ -12,10 +12,19 @@ export async function POST(
   }
 
   const { id: teeTimeId } = await params;
-  const { userId } = await req.json();
+  const { userId, guestId } = await req.json();
 
-  if (!userId) {
-    return NextResponse.json({ error: "userId is required" }, { status: 400 });
+  if (!userId && !guestId) {
+    return NextResponse.json(
+      { error: "userId or guestId is required" },
+      { status: 400 }
+    );
+  }
+  if (userId && guestId) {
+    return NextResponse.json(
+      { error: "Cannot specify both userId and guestId" },
+      { status: 400 }
+    );
   }
 
   const teeTime = await prisma.teeTime.findUnique({ where: { id: teeTimeId } });
@@ -23,18 +32,26 @@ export async function POST(
     return NextResponse.json({ error: "Tee time not found" }, { status: 404 });
   }
 
-  const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
+  if (userId) {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+  } else {
+    const guest = await prisma.guest.findUnique({ where: { id: guestId } });
+    if (!guest) {
+      return NextResponse.json({ error: "Guest not found" }, { status: 404 });
+    }
   }
 
   try {
     await prisma.teeTimeMember.create({
       data: {
         teeTimeId,
-        userId,
+        userId: userId ?? null,
+        guestId: guestId ?? null,
         addedBy: session.user.id,
-        confirmed: userId === session.user.id,
+        confirmed: !!userId && userId === session.user.id,
       },
     });
   } catch {
@@ -57,17 +74,21 @@ export async function PATCH(
   }
 
   const { id: teeTimeId } = await params;
-  const { userId, confirmed } = await req.json();
+  const { userId, guestId, confirmed } = await req.json();
 
-  if (!userId || typeof confirmed !== "boolean") {
+  if ((!userId && !guestId) || typeof confirmed !== "boolean") {
     return NextResponse.json(
-      { error: "userId and confirmed (boolean) are required" },
+      { error: "userId or guestId, plus confirmed (boolean) required" },
       { status: 400 }
     );
   }
 
+  const where = userId
+    ? { teeTimeId, userId: userId as string }
+    : { teeTimeId, guestId: guestId as string };
+
   const result = await prisma.teeTimeMember.updateMany({
-    where: { teeTimeId, userId },
+    where,
     data: { confirmed },
   });
 
@@ -88,11 +109,20 @@ export async function DELETE(
   }
 
   const { id: teeTimeId } = await params;
-  const { userId } = await req.json();
+  const { userId, guestId } = await req.json();
 
-  await prisma.teeTimeMember.deleteMany({
-    where: { teeTimeId, userId },
-  });
+  if (!userId && !guestId) {
+    return NextResponse.json(
+      { error: "userId or guestId is required" },
+      { status: 400 }
+    );
+  }
+
+  const where = userId
+    ? { teeTimeId, userId: userId as string }
+    : { teeTimeId, guestId: guestId as string };
+
+  await prisma.teeTimeMember.deleteMany({ where });
 
   return NextResponse.json({ ok: true });
 }

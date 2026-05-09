@@ -12,17 +12,30 @@ model User {
   username     String   @unique
   email        String?  @unique
   phone        String?  @unique
-  passwordHash String?  @map("password_hash")
+  passwordHash String   @map("password_hash")
   name         String
-  isStub       Boolean  @default(false) @map("is_stub")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   createdTeeTimes TeeTime[]        @relation("CreatedBy")
   memberships     TeeTimeMember[]  @relation("Member")
   addedMembers    TeeTimeMember[]  @relation("AddedBy")
+  addedGuests     Guest[]          @relation("GuestAddedBy")
 
   @@map("users")
+}
+
+model Guest {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  addedBy   String   @map("added_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  adder           User            @relation("GuestAddedBy", fields: [addedBy], references: [id])
+  teeTimeMembers  TeeTimeMember[] @relation("GuestMembership")
+
+  @@map("guests")
 }
 
 model TeeTime {
@@ -47,15 +60,18 @@ model TeeTime {
 model TeeTimeMember {
   id        String   @id @default(uuid()) @db.Uuid
   teeTimeId String   @map("tee_time_id") @db.Uuid
-  userId    String   @map("user_id") @db.Uuid
+  userId    String?  @map("user_id") @db.Uuid
+  guestId   String?  @map("guest_id") @db.Uuid
   addedBy   String   @map("added_by") @db.Uuid
   confirmed Boolean  @default(false)
   createdAt DateTime @default(now()) @map("created_at")
 
   teeTime TeeTime @relation(fields: [teeTimeId], references: [id], onDelete: Cascade)
-  user    User    @relation("Member", fields: [userId], references: [id])
+  user    User?   @relation("Member", fields: [userId], references: [id])
+  guest   Guest?  @relation("GuestMembership", fields: [guestId], references: [id], onDelete: Cascade)
   adder   User    @relation("AddedBy", fields: [addedBy], references: [id])
 
   @@unique([teeTimeId, userId])
+  @@unique([teeTimeId, guestId])
   @@map("tee_time_members")
 }

@@ -2,17 +2,22 @@
 
 import { useEffect, useRef, useState } from "react";
 
-export type PickerUser = { id: string; name: string; isStub: boolean };
+export type PickerItem =
+  | { kind: "user"; id: string; name: string }
+  | { kind: "guest"; id: string; name: string };
 
 export function MemberPicker({
-  excludeIds,
+  excludeUserIds,
+  excludeGuestIds,
   onPick,
 }: {
-  excludeIds: string[];
-  onPick: (user: PickerUser) => void | Promise<void>;
+  excludeUserIds: string[];
+  excludeGuestIds: string[];
+  onPick: (item: PickerItem) => void | Promise<void>;
 }) {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<PickerUser[]>([]);
+  const [users, setUsers] = useState<{ id: string; name: string }[]>([]);
+  const [guests, setGuests] = useState<{ id: string; name: string }[]>([]);
   const [searching, setSearching] = useState(false);
   const [showManual, setShowManual] = useState(false);
   const [firstName, setFirstName] = useState("");
@@ -20,37 +25,42 @@ export function MemberPicker({
   const [error, setError] = useState("");
   const [adding, setAdding] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const excludeKey = excludeIds.join(",");
+  const excludeUsersKey = excludeUserIds.join(",");
+  const excludeGuestsKey = excludeGuestIds.join(",");
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     const q = query.trim();
     if (q.length < 1) {
-      setResults([]);
+      setUsers([]);
+      setGuests([]);
       setSearching(false);
       return;
     }
     setSearching(true);
     debounceRef.current = setTimeout(async () => {
       const params = new URLSearchParams({ q });
-      if (excludeKey) params.set("exclude", excludeKey);
+      if (excludeUsersKey) params.set("excludeUsers", excludeUsersKey);
+      if (excludeGuestsKey) params.set("excludeGuests", excludeGuestsKey);
       const res = await fetch(`/api/users/search?${params}`);
       if (res.ok) {
         const data = await res.json();
-        setResults(data.users);
+        setUsers(data.users);
+        setGuests(data.guests);
       }
       setSearching(false);
     }, 200);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query, excludeKey]);
+  }, [query, excludeUsersKey, excludeGuestsKey]);
 
-  async function handlePick(user: PickerUser) {
+  async function handlePick(item: PickerItem) {
     setError("");
-    await onPick(user);
+    await onPick(item);
     setQuery("");
-    setResults([]);
+    setUsers([]);
+    setGuests([]);
   }
 
   async function handleManualAdd() {
@@ -62,7 +72,7 @@ export function MemberPicker({
     setError("");
     setAdding(true);
     try {
-      const res = await fetch("/api/users/stub", {
+      const res = await fetch("/api/guests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ firstName, lastName }),
@@ -72,14 +82,16 @@ export function MemberPicker({
         setError(data.error || "Failed to add");
         return;
       }
-      const { user } = await res.json();
-      await onPick(user);
+      const { guest } = await res.json();
+      await onPick({ kind: "guest", id: guest.id, name: guest.name });
       setFirstName("");
       setLastName("");
     } finally {
       setAdding(false);
     }
   }
+
+  const totalResults = users.length + guests.length;
 
   return (
     <div className="space-y-2">
@@ -96,22 +108,31 @@ export function MemberPicker({
             {searching && (
               <li className="px-3 py-2 text-xs text-gray-500">Searching…</li>
             )}
-            {!searching && results.length === 0 && (
+            {!searching && totalResults === 0 && (
               <li className="px-3 py-2 text-xs text-gray-500">
                 No matches. Add manually below.
               </li>
             )}
-            {results.map((u) => (
-              <li key={u.id}>
+            {users.map((u) => (
+              <li key={`u-${u.id}`}>
                 <button
                   type="button"
-                  onClick={() => handlePick(u)}
+                  onClick={() => handlePick({ kind: "user", id: u.id, name: u.name })}
                   className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-emerald-50"
                 >
                   <span>{u.name}</span>
-                  {u.isStub && (
-                    <span className="text-xs text-gray-400">guest</span>
-                  )}
+                </button>
+              </li>
+            ))}
+            {guests.map((g) => (
+              <li key={`g-${g.id}`}>
+                <button
+                  type="button"
+                  onClick={() => handlePick({ kind: "guest", id: g.id, name: g.name })}
+                  className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-emerald-50"
+                >
+                  <span>{g.name}</span>
+                  <span className="text-xs text-gray-400">guest</span>
                 </button>
               </li>
             ))}

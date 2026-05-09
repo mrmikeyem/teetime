@@ -9,7 +9,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { course, teeOffAt, partySize, notes, memberUserIds } = await req.json();
+  const { course, teeOffAt, partySize, notes, memberUserIds, memberGuestIds } =
+    await req.json();
 
   if (!course?.trim() || !teeOffAt) {
     return NextResponse.json(
@@ -32,10 +33,22 @@ export async function POST(req: Request) {
   }
 
   const creatorId = session.user.id;
-  const extraMemberIds: string[] = Array.isArray(memberUserIds)
-    ? memberUserIds.filter((id) => typeof id === "string" && id !== creatorId)
-    : [];
-  const uniqueExtraIds = Array.from(new Set(extraMemberIds));
+  const extraUserIds = Array.from(
+    new Set(
+      Array.isArray(memberUserIds)
+        ? memberUserIds.filter(
+            (id) => typeof id === "string" && id !== creatorId
+          )
+        : []
+    )
+  );
+  const extraGuestIds = Array.from(
+    new Set(
+      Array.isArray(memberGuestIds)
+        ? memberGuestIds.filter((id) => typeof id === "string")
+        : []
+    )
+  );
 
   const coords = await geocodeCourse(course.trim()).catch(() => null);
 
@@ -51,8 +64,13 @@ export async function POST(req: Request) {
       members: {
         create: [
           { userId: creatorId, addedBy: creatorId, confirmed: true },
-          ...uniqueExtraIds.map((userId) => ({
+          ...extraUserIds.map((userId) => ({
             userId,
+            addedBy: creatorId,
+            confirmed: false,
+          })),
+          ...extraGuestIds.map((guestId) => ({
+            guestId,
             addedBy: creatorId,
             confirmed: false,
           })),

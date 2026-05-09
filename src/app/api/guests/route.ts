@@ -19,20 +19,13 @@ export async function POST(req: Request) {
     );
   }
 
-  const name = `${first} ${last}`;
-  const baseUsername = `${first}${last}`.toLowerCase().replace(/[^a-z0-9]/g, "");
-
-  let username = baseUsername;
-  let suffix = 1;
-  while (await prisma.user.findUnique({ where: { username } })) {
-    suffix += 1;
-    username = `${baseUsername}${suffix}`;
-  }
-
-  const user = await prisma.user.create({
-    data: { username, name, isStub: true },
-    select: { id: true, name: true, isStub: true },
+  const guest = await prisma.guest.create({
+    data: {
+      name: `${first} ${last}`,
+      addedBy: session.user.id,
+    },
+    select: { id: true, name: true },
   });
 
-  return NextResponse.json({ user }, { status: 201 });
+  return NextResponse.json({ guest }, { status: 201 });
 }

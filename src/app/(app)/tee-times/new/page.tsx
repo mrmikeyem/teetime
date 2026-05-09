@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
-import { MemberPicker, type PickerUser } from "../member-picker";
+import { MemberPicker, type PickerItem } from "../member-picker";
 import { WeatherPreview } from "./weather-preview";
 
 const COURSE_SHORTCUTS = [
@@ -30,25 +30,29 @@ function NewTeeTimeForm() {
   const { data: session } = useSession();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [staged, setStaged] = useState<PickerUser[]>([]);
+  const [staged, setStaged] = useState<PickerItem[]>([]);
   const [partySize, setPartySize] = useState(4);
   const [course, setCourse] = useState("");
   const [date, setDate] = useState(initialDate);
   const [time, setTime] = useState("15:30");
   const courseRef = useRef<HTMLInputElement>(null);
 
-  const creator: PickerUser | null = session?.user
-    ? { id: session.user.id, name: session.user.name, isStub: false }
+  const creator: PickerItem | null = session?.user
+    ? { kind: "user", id: session.user.id, name: session.user.name }
     : null;
 
-  function addStaged(user: PickerUser) {
+  function addStaged(item: PickerItem) {
     setStaged((prev) =>
-      prev.find((p) => p.id === user.id) ? prev : [...prev, user]
+      prev.find((p) => p.kind === item.kind && p.id === item.id)
+        ? prev
+        : [...prev, item]
     );
   }
 
-  function removeStaged(id: string) {
-    setStaged((prev) => prev.filter((p) => p.id !== id));
+  function removeStaged(item: PickerItem) {
+    setStaged((prev) =>
+      prev.filter((p) => !(p.kind === item.kind && p.id === item.id))
+    );
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -70,7 +74,8 @@ function NewTeeTimeForm() {
         teeOffAt,
         partySize,
         notes,
-        memberUserIds: staged.map((s) => s.id),
+        memberUserIds: staged.filter((s) => s.kind === "user").map((s) => s.id),
+        memberGuestIds: staged.filter((s) => s.kind === "guest").map((s) => s.id),
       }),
     });
 
@@ -219,13 +224,13 @@ function NewTeeTimeForm() {
             )}
             {staged.map((s) => (
               <li
-                key={s.id}
+                key={`${s.kind}-${s.id}`}
                 className="flex items-center justify-between rounded-md bg-white px-3 py-1.5 text-sm shadow-sm"
               >
                 <span className="flex items-center gap-2">
                   <span className="text-emerald-700">✓</span>
                   <span>{s.name}</span>
-                  {s.isStub && (
+                  {s.kind === "guest" && (
                     <span className="text-[10px] uppercase tracking-wide text-gray-400">
                       guest
                     </span>
@@ -233,7 +238,7 @@ function NewTeeTimeForm() {
                 </span>
                 <button
                   type="button"
-                  onClick={() => removeStaged(s.id)}
+                  onClick={() => removeStaged(s)}
                   aria-label={`Remove ${s.name}`}
                   className="flex h-8 w-8 items-center justify-center rounded-md text-gray-400 hover:bg-red-50 hover:text-red-600"
                 >
@@ -244,10 +249,13 @@ function NewTeeTimeForm() {
           </ul>
 
           <MemberPicker
-            excludeIds={[
+            excludeUserIds={[
               ...(creator ? [creator.id] : []),
-              ...staged.map((s) => s.id),
+              ...staged.filter((s) => s.kind === "user").map((s) => s.id),
             ]}
+            excludeGuestIds={staged
+              .filter((s) => s.kind === "guest")
+              .map((s) => s.id)}
             onPick={addStaged}
           />
         </div>

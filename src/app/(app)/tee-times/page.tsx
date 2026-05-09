@@ -21,7 +21,10 @@ export default async function TeeTimesPage() {
     include: {
       creator: { select: { id: true, name: true } },
       members: {
-        include: { user: { select: { id: true, name: true } } },
+        include: {
+          user: { select: { id: true, name: true } },
+          guest: { select: { id: true, name: true } },
+        },
         orderBy: { createdAt: "asc" },
       },
     },
@@ -69,7 +72,7 @@ export default async function TeeTimesPage() {
     partySize: t.partySize,
     creatorName: t.creator.name,
     members: t.members.map((m) => ({
-      userName: m.user.name,
+      name: m.user?.name ?? m.guest?.name ?? "(unknown)",
       confirmed: m.confirmed,
     })),
     weather: weatherByTeeId.get(t.id) ?? null,

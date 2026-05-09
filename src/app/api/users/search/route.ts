@@ -10,22 +10,35 @@ export async function GET(req: Request) {
 
   const { searchParams } = new URL(req.url);
   const q = (searchParams.get("q") ?? "").trim();
-  const excludeParam = searchParams.get("exclude") ?? "";
-  const exclude = excludeParam ? excludeParam.split(",").filter(Boolean) : [];
+  const excludeUsersParam = searchParams.get("excludeUsers") ?? "";
+  const excludeGuestsParam = searchParams.get("excludeGuests") ?? "";
+  const excludeUsers = excludeUsersParam ? excludeUsersParam.split(",").filter(Boolean) : [];
+  const excludeGuests = excludeGuestsParam ? excludeGuestsParam.split(",").filter(Boolean) : [];
 
   if (q.length < 1) {
-    return NextResponse.json({ users: [] });
+    return NextResponse.json({ users: [], guests: [] });
   }
 
-  const users = await prisma.user.findMany({
-    where: {
-      name: { contains: q, mode: "insensitive" },
-      ...(exclude.length ? { id: { notIn: exclude } } : {}),
-    },
-    select: { id: true, name: true, isStub: true },
-    orderBy: { name: "asc" },
-    take: 10,
-  });
+  const [users, guests] = await Promise.all([
+    prisma.user.findMany({
+      where: {
+        name: { contains: q, mode: "insensitive" },
+        ...(excludeUsers.length ? { id: { notIn: excludeUsers } } : {}),
+      },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+      take: 10,
+    }),
+    prisma.guest.findMany({
+      where: {
+        name: { contains: q, mode: "insensitive" },
+        ...(excludeGuests.length ? { id: { notIn: excludeGuests } } : {}),
+      },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+      take: 10,
+    }),
+  ]);
 
-  return NextResponse.json({ users });
+  return NextResponse.json({ users, guests });
 }

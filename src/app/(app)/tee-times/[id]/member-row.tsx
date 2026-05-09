@@ -5,28 +5,36 @@ import { useState } from "react";
 
 export function MemberRow({
   teeTimeId,
-  userId,
+  memberKind,
+  memberId,
   name,
-  isStub,
+  isGuest,
   confirmed,
   addedByLabel,
 }: {
   teeTimeId: string;
-  userId: string;
+  memberKind: "user" | "guest";
+  memberId: string;
   name: string;
-  isStub: boolean;
+  isGuest: boolean;
   confirmed: boolean;
   addedByLabel: string;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
 
+  function bodyForId() {
+    return memberKind === "user"
+      ? { userId: memberId }
+      : { guestId: memberId };
+  }
+
   async function toggleConfirmed() {
     setBusy(true);
     const res = await fetch(`/api/tee-times/${teeTimeId}/members`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, confirmed: !confirmed }),
+      body: JSON.stringify({ ...bodyForId(), confirmed: !confirmed }),
     });
     setBusy(false);
     if (res.ok) router.refresh();
@@ -37,7 +45,7 @@ export function MemberRow({
     const res = await fetch(`/api/tee-times/${teeTimeId}/members`, {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId }),
+      body: JSON.stringify(bodyForId()),
     });
     setBusy(false);
     if (res.ok) router.refresh();
@@ -48,7 +56,7 @@ export function MemberRow({
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className="truncate font-medium">{name}</span>
-          {isStub && (
+          {isGuest && (
             <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-gray-500">
               guest
             </span>
