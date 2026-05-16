@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth, signOut } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { Logo } from "@/app/components/logo";
 import { ListWithCalendar, type TeeTimeListItem } from "./list-with-calendar";
 import {
   GRAND_FORKS,
@@ -81,13 +82,18 @@ export default async function TeeTimesPage() {
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-8 space-y-6">
       <header className="flex items-center justify-between gap-2">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-bold">Tee Times</h1>
-          <p className="truncate text-sm text-gray-500">
-            Hi {session.user.name}.
-          </p>
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+          <Logo size={56} className="h-10 w-10 shrink-0 sm:h-12 sm:w-12" />
+          <div className="min-w-0">
+            <h1 className="truncate text-lg font-bold leading-tight sm:text-2xl">
+              Tee Time Tracker
+            </h1>
+            <p className="truncate text-xs text-gray-500 sm:text-sm">
+              Hi {session.user.name}.
+            </p>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           <Link
             href="/admin"
             className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-800"

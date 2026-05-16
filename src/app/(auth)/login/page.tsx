@@ -4,6 +4,7 @@ import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Link from "next/link";
+import { Logo } from "@/app/components/logo";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -33,8 +34,9 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-full flex-col items-center justify-center px-4 py-16">
       <div className="w-full max-w-sm space-y-8">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold">Tee Times</h1>
+        <div className="flex flex-col items-center text-center">
+          <Logo size={128} priority className="h-28 w-28 sm:h-32 sm:w-32" />
+          <h1 className="mt-3 text-xl font-bold sm:text-2xl">Tee Time Tracker</h1>
           <p className="mt-1 text-sm text-gray-500">Sign in to your group</p>
         </div>
 

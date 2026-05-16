@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { randomBytes, createHash } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { sendMail } from "@/lib/mailer";
+import { passwordResetEmail } from "@/lib/email-templates";
 
 const TOKEN_TTL_MS = 60 * 60 * 1000;
 
@@ -26,15 +27,11 @@ export async function POST(req: Request) {
     const origin = req.headers.get("origin") ?? process.env.AUTH_URL ?? "";
     const resetUrl = `${origin}/reset-password?token=${rawToken}`;
 
-    await sendMail({
-      to: emailClean,
-      subject: "Reset your Tee Times password",
-      text:
-        `Hi ${user.name},\n\n` +
-        `Click the link below to reset your password. It expires in 1 hour.\n\n` +
-        `${resetUrl}\n\n` +
-        `If you didn't request this, you can ignore this email.`,
+    const { subject, text, html } = passwordResetEmail({
+      name: user.name,
+      resetUrl,
     });
+    await sendMail({ to: emailClean, subject, text, html });
   }
 
   return NextResponse.json({ ok: true });

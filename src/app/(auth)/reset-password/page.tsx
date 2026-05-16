@@ -3,6 +3,7 @@
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { Logo } from "@/app/components/logo";
 
 function ResetPasswordForm() {
   const router = useRouter();
@@ -114,8 +115,9 @@ export default function ResetPasswordPage() {
   return (
     <div className="flex min-h-full flex-col items-center justify-center px-4 py-16">
       <div className="w-full max-w-sm space-y-8">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold">Choose a new password</h1>
+        <div className="flex flex-col items-center text-center">
+          <Logo size={96} priority className="h-20 w-20 sm:h-24 sm:w-24" />
+          <h1 className="mt-3 text-xl font-bold sm:text-2xl">Choose a new password</h1>
         </div>
 
         <Suspense fallback={<div className="text-sm text-gray-500">Loading...</div>}>

@@ -4,6 +4,7 @@ import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Link from "next/link";
+import { Logo } from "@/app/components/logo";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -53,8 +54,9 @@ export default function RegisterPage() {
   return (
     <div className="flex min-h-full flex-col items-center justify-center px-4 py-16">
       <div className="w-full max-w-sm space-y-8">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold">Create Account</h1>
+        <div className="flex flex-col items-center text-center">
+          <Logo size={96} priority className="h-20 w-20 sm:h-24 sm:w-24" />
+          <h1 className="mt-3 text-xl font-bold sm:text-2xl">Create Account</h1>
           <p className="mt-1 text-sm text-gray-500">
             Phone is optional now — used for text reminders later.
           </p>
