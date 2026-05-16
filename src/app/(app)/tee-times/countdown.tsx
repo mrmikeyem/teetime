@@ -34,7 +34,7 @@ function formatRemaining(ms: number) {
   const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
   const minutes = totalMinutes % 60;
 
-  if (days > 0) return `in ${days}d ${hours}h`;
+  if (days > 0) return `in ${days}d ${hours}h ${minutes}m`;
   if (hours > 0) return `in ${hours}h ${minutes}m`;
   return `in ${minutes}m`;
 }
