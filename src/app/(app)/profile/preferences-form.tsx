@@ -55,7 +55,7 @@ export function PreferencesForm({ initial }: { initial: Prefs }) {
     setSaving(true);
     setStatus("idle");
     setError("");
-    const res = await fetch("/api/account/preferences", {
+    const res = await fetch("/api/profile/preferences", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(prefs),

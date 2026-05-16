@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import type { UserRole } from "@prisma/client";
 
 declare module "next-auth" {
   interface Session {
@@ -9,6 +10,7 @@ declare module "next-auth" {
       id: string;
       email: string;
       name: string;
+      role: UserRole;
     };
   }
 }
@@ -16,6 +18,7 @@ declare module "next-auth" {
 declare module "@auth/core/jwt" {
   interface JWT {
     id: string;
+    role: UserRole;
   }
 }
 
@@ -44,10 +47,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         );
         if (!valid) return null;
 
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { lastLoginAt: new Date() },
+        });
+
         return {
           id: user.id,
           email: user.email ?? "",
           name: user.name,
+          role: user.role,
         };
       },
     }),
@@ -60,12 +69,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     jwt({ token, user }) {
       if (user) {
         token.id = user.id as string;
+        token.role = (user as { role: UserRole }).role;
       }
       return token;
     },
-    session({ session, token }) {
+    async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id;
+        // Always read role from DB. The JWT is minted at login and would
+        // otherwise drift if an admin changes someone's role mid-session.
+        const u = await prisma.user.findUnique({
+          where: { id: token.id },
+          select: { role: true },
+        });
+        session.user.role = u?.role ?? "BASIC";
       }
       return session;
     },

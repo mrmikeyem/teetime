@@ -81,37 +81,39 @@ export default async function TeeTimesPage() {
 
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-8 space-y-6">
-      <header className="flex items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+      <header className="space-y-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <Logo size={56} className="h-10 w-10 shrink-0 sm:h-12 sm:w-12" />
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h1 className="truncate text-lg font-bold leading-tight sm:text-2xl">
               Tee Time Tracker
             </h1>
             <p className="truncate text-xs text-gray-500 sm:text-sm">
-              Hi{" "}
-              <Link
-                href="/account"
-                className="font-semibold text-emerald-700 hover:text-emerald-800 hover:underline"
-              >
-                {session.user.name}
-              </Link>
-              .
+              Hi {session.user.name}.
             </p>
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Link
-            href="/admin"
+            href="/profile"
             className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-800"
           >
-            Admin
+            Profile
           </Link>
+          {session.user.role === "ADMIN" && (
+            <Link
+              href="/admin"
+              className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-800"
+            >
+              Admin
+            </Link>
+          )}
           <form
             action={async () => {
               "use server";
               await signOut({ redirectTo: "/login" });
             }}
+            className="ml-auto"
           >
             <button
               type="submit"
