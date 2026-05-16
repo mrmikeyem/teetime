@@ -28,7 +28,12 @@ export async function POST(
   const { action } = await params;
   if (!isAction(action)) return redirectToResult("error", "Unknown action.");
 
-  const form = await req.formData();
+  let form;
+  try {
+    form = await req.formData();
+  } catch {
+    return redirectToResult("error", "Missing token.");
+  }
   const token = form.get("token");
   if (typeof token !== "string" || !token) {
     return redirectToResult("error", "Missing token.");
