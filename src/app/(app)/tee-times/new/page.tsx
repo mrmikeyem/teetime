@@ -136,7 +136,7 @@ function NewTeeTimeForm() {
         </div>
 
         <div className="flex gap-2">
-          <div className="flex-1">
+          <div className="min-w-0 flex-1">
             <label className="block text-sm font-medium" htmlFor="date">
               Date
             </label>
@@ -147,10 +147,10 @@ function NewTeeTimeForm() {
               required
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
+              className="mt-1 block w-full min-w-0 appearance-none rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
             />
           </div>
-          <div className="flex-1">
+          <div className="min-w-0 flex-1">
             <label className="block text-sm font-medium" htmlFor="time">
               Tee off
             </label>
@@ -161,7 +161,7 @@ function NewTeeTimeForm() {
               required
               value={time}
               onChange={(e) => setTime(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
+              className="mt-1 block w-full min-w-0 appearance-none rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
             />
           </div>
         </div>
