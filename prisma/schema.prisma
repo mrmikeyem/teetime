@@ -17,13 +17,46 @@ model User {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  createdTeeTimes TeeTime[]            @relation("CreatedBy")
-  memberships     TeeTimeMember[]      @relation("Member")
-  addedMembers    TeeTimeMember[]      @relation("AddedBy")
-  addedGuests     Guest[]              @relation("GuestAddedBy")
-  resetTokens     PasswordResetToken[]
+  createdTeeTimes     TeeTime[]               @relation("CreatedBy")
+  memberships         TeeTimeMember[]         @relation("Member")
+  addedMembers        TeeTimeMember[]         @relation("AddedBy")
+  addedGuests         Guest[]                 @relation("GuestAddedBy")
+  resetTokens         PasswordResetToken[]
+  emailActionTokens   EmailActionToken[]
+  notificationPrefs   NotificationPreference?
 
   @@map("users")
+}
+
+model NotificationPreference {
+  userId           String   @id @map("user_id") @db.Uuid
+  reminders        Boolean  @default(true)
+  addedTo          Boolean  @default(true) @map("added_to")
+  joinedByOther    Boolean  @default(true) @map("joined_by_other")
+  leftByOther      Boolean  @default(true) @map("left_by_other")
+  unsubscribedAll  Boolean  @default(false) @map("unsubscribed_all")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_preferences")
+}
+
+model EmailActionToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  action    String
+  teeTimeId String?   @map("tee_time_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([teeTimeId])
+  @@map("email_action_tokens")
 }
 
 model PasswordResetToken {
@@ -73,13 +106,14 @@ model TeeTime {
 }
 
 model TeeTimeMember {
-  id        String   @id @default(uuid()) @db.Uuid
-  teeTimeId String   @map("tee_time_id") @db.Uuid
-  userId    String?  @map("user_id") @db.Uuid
-  guestId   String?  @map("guest_id") @db.Uuid
-  addedBy   String   @map("added_by") @db.Uuid
-  confirmed Boolean  @default(false)
-  createdAt DateTime @default(now()) @map("created_at")
+  id         String    @id @default(uuid()) @db.Uuid
+  teeTimeId  String    @map("tee_time_id") @db.Uuid
+  userId     String?   @map("user_id") @db.Uuid
+  guestId    String?   @map("guest_id") @db.Uuid
+  addedBy    String    @map("added_by") @db.Uuid
+  confirmed  Boolean   @default(false)
+  remindedAt DateTime? @map("reminded_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
 
   teeTime TeeTime @relation(fields: [teeTimeId], references: [id], onDelete: Cascade)
   user    User?   @relation("Member", fields: [userId], references: [id])
