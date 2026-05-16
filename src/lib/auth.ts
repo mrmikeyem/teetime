@@ -73,16 +73,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       }
       return token;
     },
-    async session({ session, token }) {
+    session({ session, token }) {
       if (session.user) {
         session.user.id = token.id;
-        // Always read role from DB. The JWT is minted at login and would
-        // otherwise drift if an admin changes someone's role mid-session.
-        const u = await prisma.user.findUnique({
-          where: { id: token.id },
-          select: { role: true },
-        });
-        session.user.role = u?.role ?? "BASIC";
+        // Note: this is the role at LOGIN time. The session callback runs
+        // inside middleware on the edge runtime, where Prisma can't run, so
+        // we can't DB-lookup here. UI affordances (Admin button visibility)
+        // will lag until the user signs in again; actual admin-gated
+        // endpoints/pages re-check role from DB via requireAdmin/isAdmin
+        // in src/lib/admin.ts. See [[feedback-jwt-role-drift]].
+        session.user.role = token.role ?? "BASIC";
       }
       return session;
     },
