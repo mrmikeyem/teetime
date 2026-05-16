@@ -13,7 +13,10 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const SITE_URL = process.env.AUTH_URL ?? "https://infiniterien.com";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: "Tee Time Tracker",
   description: "Track. Plan. Shank. Repeat.",
   icons: {
@@ -22,6 +25,27 @@ export const metadata: Metadata = {
       { url: "/favicon-16.png", sizes: "16x16", type: "image/png" },
     ],
     apple: "/apple-touch-icon.png",
+  },
+  openGraph: {
+    type: "website",
+    siteName: "Tee Time Tracker",
+    title: "Tee Time Tracker",
+    description: "Track. Plan. Shank. Repeat.",
+    url: SITE_URL,
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Tee Time Tracker",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Tee Time Tracker",
+    description: "Track. Plan. Shank. Repeat.",
+    images: ["/og-image.png"],
   },
 };
 

@@ -1,15 +1,29 @@
 "use client";
 
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Logo } from "@/app/components/logo";
 
+const REMEMBER_KEY = "ttt:rememberedUsername";
+
 export default function LoginPage() {
-  const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [username, setUsername] = useState("");
+  const [remember, setRemember] = useState(false);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(REMEMBER_KEY);
+      if (saved) {
+        setUsername(saved);
+        setRemember(true);
+      }
+    } catch {
+      // localStorage unavailable (privacy mode, etc) — silently skip
+    }
+  }, []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -17,8 +31,9 @@ export default function LoginPage() {
     setLoading(true);
 
     const formData = new FormData(e.currentTarget);
+    const usernameValue = formData.get("username") as string;
     const result = await signIn("credentials", {
-      username: formData.get("username"),
+      username: usernameValue,
       password: formData.get("password"),
       redirect: false,
     });
@@ -26,9 +41,22 @@ export default function LoginPage() {
     if (result?.error) {
       setError("Invalid credentials");
       setLoading(false);
-    } else {
-      router.push("/tee-times");
+      return;
     }
+
+    try {
+      if (remember) {
+        localStorage.setItem(REMEMBER_KEY, usernameValue);
+      } else {
+        localStorage.removeItem(REMEMBER_KEY);
+      }
+    } catch {
+      // ignore
+    }
+
+    // Full reload (not router.push) so the iOS viewport zoom resets between
+    // pages — client-side navigation preserves the user's pinch-zoom level.
+    window.location.href = "/tee-times";
   }
 
   return (
@@ -57,6 +85,8 @@ export default function LoginPage() {
               type="text"
               required
               autoComplete="username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm lowercase focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
             />
           </div>
@@ -82,6 +112,16 @@ export default function LoginPage() {
               className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
             />
           </div>
+
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={remember}
+              onChange={(e) => setRemember(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300 text-emerald-700 focus:ring-emerald-700"
+            />
+            Remember username on this device
+          </label>
 
           <button
             type="submit"
