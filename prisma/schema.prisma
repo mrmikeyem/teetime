@@ -17,12 +17,27 @@ model User {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  createdTeeTimes TeeTime[]        @relation("CreatedBy")
-  memberships     TeeTimeMember[]  @relation("Member")
-  addedMembers    TeeTimeMember[]  @relation("AddedBy")
-  addedGuests     Guest[]          @relation("GuestAddedBy")
+  createdTeeTimes TeeTime[]            @relation("CreatedBy")
+  memberships     TeeTimeMember[]      @relation("Member")
+  addedMembers    TeeTimeMember[]      @relation("AddedBy")
+  addedGuests     Guest[]              @relation("GuestAddedBy")
+  resetTokens     PasswordResetToken[]
 
   @@map("users")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
 }
 
 model Guest {
