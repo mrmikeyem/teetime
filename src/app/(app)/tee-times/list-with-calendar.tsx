@@ -115,16 +115,18 @@ function isoLocalDate(d: Date) {
 }
 
 function formatDate(d: Date) {
-  return d.toLocaleDateString(undefined, {
+  return d.toLocaleDateString("en-US", {
     weekday: "short",
     month: "short",
     day: "numeric",
+    timeZone: "America/Chicago",
   });
 }
 
 function formatTime(d: Date) {
-  return d.toLocaleTimeString(undefined, {
+  return d.toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",
+    timeZone: "America/Chicago",
   });
 }

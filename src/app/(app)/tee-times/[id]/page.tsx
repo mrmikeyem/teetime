@@ -149,7 +149,13 @@ export default async function TeeTimeDetailPage({
         excludeGuestIds={excludeGuestIds}
       />
 
-      <div className="flex justify-end border-t border-gray-200 pt-4">
+      <div className="flex flex-wrap items-center justify-end gap-2 border-t border-gray-200 pt-4">
+        <Link
+          href={`/tee-times/${teeTime.id}/edit`}
+          className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800"
+        >
+          Edit
+        </Link>
         <DeleteButton teeTimeId={teeTime.id} />
       </div>
     </main>
@@ -157,11 +163,12 @@ export default async function TeeTimeDetailPage({
 }
 
 function formatDateTime(d: Date) {
-  return d.toLocaleString(undefined, {
+  return d.toLocaleString("en-US", {
     weekday: "short",
     month: "short",
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
+    timeZone: "America/Chicago",
   });
 }

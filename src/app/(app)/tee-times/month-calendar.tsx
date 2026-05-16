@@ -224,7 +224,7 @@ export function MonthCalendar({
 function formatPretty(iso: string) {
   const [y, m, d] = iso.split("-").map(Number);
   const date = new Date(y, m - 1, d);
-  return date.toLocaleDateString(undefined, {
+  return date.toLocaleDateString("en-US", {
     weekday: "long",
     month: "short",
     day: "numeric",

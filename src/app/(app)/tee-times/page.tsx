@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { auth, signOut } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Logo } from "@/app/components/logo";
+import { startOfTodayInAppTz } from "@/lib/time";
 import { ListWithCalendar, type TeeTimeListItem } from "./list-with-calendar";
 import {
   GRAND_FORKS,
@@ -18,7 +19,7 @@ export default async function TeeTimesPage() {
 
   const teeTimes = await prisma.teeTime.findMany({
     orderBy: { teeOffAt: "asc" },
-    where: { teeOffAt: { gte: startOfToday() } },
+    where: { teeOffAt: { gte: startOfTodayInAppTz() } },
     include: {
       creator: { select: { id: true, name: true } },
       members: {
@@ -137,8 +138,3 @@ export default async function TeeTimesPage() {
   );
 }
 
-function startOfToday() {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
