@@ -89,7 +89,14 @@ export default async function TeeTimesPage() {
               Tee Time Tracker
             </h1>
             <p className="truncate text-xs text-gray-500 sm:text-sm">
-              Hi {session.user.name}.
+              Hi{" "}
+              <Link
+                href="/account"
+                className="font-semibold text-emerald-700 hover:text-emerald-800 hover:underline"
+              >
+                {session.user.name}
+              </Link>
+              .
             </p>
           </div>
         </div>

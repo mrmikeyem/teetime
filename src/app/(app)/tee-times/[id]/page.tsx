@@ -6,6 +6,7 @@ import { AddMember } from "./add-member";
 import { MemberRow } from "./member-row";
 import { Countdown } from "../countdown";
 import { DeleteButton } from "./delete-button";
+import { JoinButton } from "./join-button";
 import { WeatherChip } from "../weather-chip";
 import { getWeatherForTeeTime } from "@/lib/weather";
 
@@ -44,6 +45,9 @@ export default async function TeeTimeDetailPage({
   const excludeGuestIds = teeTime.members
     .map((m) => m.guestId)
     .filter((id): id is string => id !== null);
+
+  const isCurrentUserMember = excludeUserIds.includes(session.user.id);
+  const isPastTeeTime = teeTime.teeOffAt.getTime() < Date.now();
 
   const confirmedCount = teeTime.members.filter((m) => m.confirmed).length;
   const overCapacity = teeTime.members.length > teeTime.partySize;
@@ -134,6 +138,10 @@ export default async function TeeTimeDetailPage({
           </ul>
         )}
       </section>
+
+      {!isCurrentUserMember && !isPastTeeTime && (
+        <JoinButton teeTimeId={teeTime.id} userId={session.user.id} />
+      )}
 
       <AddMember
         teeTimeId={teeTime.id}

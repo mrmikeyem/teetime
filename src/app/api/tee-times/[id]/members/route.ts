@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import {
+  notifyAddedToTeeTime,
+  notifyMemberJoined,
+  notifyMemberLeft,
+} from "@/lib/notification-events";
 
 export async function POST(
   req: Request,
@@ -61,6 +66,23 @@ export async function POST(
     );
   }
 
+  if (userId) {
+    // Tell the new member (if added by someone else) and tell the rest of the group.
+    // The helper functions skip themselves where appropriate.
+    await Promise.allSettled([
+      notifyAddedToTeeTime({
+        userId,
+        teeTimeId,
+        addedByUserId: session.user.id,
+      }),
+      notifyMemberJoined({
+        teeTimeId,
+        joinerUserId: userId,
+        actorUserId: session.user.id,
+      }),
+    ]);
+  }
+
   return NextResponse.json({ ok: true }, { status: 201 });
 }
 
@@ -118,11 +140,48 @@ export async function DELETE(
     );
   }
 
+  // Load context BEFORE delete so we have the leaver's name and the remaining roster.
+  const teeTime = await prisma.teeTime.findUnique({
+    where: { id: teeTimeId },
+    include: {
+      members: {
+        include: {
+          user: { select: { id: true, name: true } },
+          guest: { select: { name: true } },
+        },
+      },
+    },
+  });
+
+  const leaverMember = teeTime?.members.find((m) =>
+    userId ? m.userId === userId : m.guestId === guestId
+  );
+  const leaverName =
+    leaverMember?.user?.name ?? leaverMember?.guest?.name ?? "Someone";
+  const remainingUserIds =
+    teeTime?.members
+      .filter((m) =>
+        userId ? m.userId !== userId : m.guestId !== guestId
+      )
+      .map((m) => m.userId)
+      .filter((id): id is string => !!id) ?? [];
+
   const where = userId
     ? { teeTimeId, userId: userId as string }
     : { teeTimeId, guestId: guestId as string };
 
-  await prisma.teeTimeMember.deleteMany({ where });
+  const result = await prisma.teeTimeMember.deleteMany({ where });
+
+  if (result.count > 0 && teeTime) {
+    await notifyMemberLeft({
+      teeTimeId,
+      leaverName,
+      actorUserId: session.user.id,
+      remainingMemberUserIds: remainingUserIds,
+      course: teeTime.course,
+      teeOffAt: teeTime.teeOffAt,
+    });
+  }
 
   return NextResponse.json({ ok: true });
 }
