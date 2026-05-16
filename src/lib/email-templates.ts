@@ -253,6 +253,51 @@ export function leftTeeTimeEmail(opts: {
   return { subject, text, html };
 }
 
+export function newTeeTimeAvailableEmail(opts: {
+  recipientName: string;
+  bookerName: string;
+  course: string;
+  teeOffAt: Date;
+  openSpots: number;
+  joinUrl: string;
+  detailUrl: string;
+  unsubscribeUrl: string;
+}) {
+  const { recipientName, bookerName, course, teeOffAt, openSpots, joinUrl, detailUrl, unsubscribeUrl } = opts;
+  const when = formatTeeOff(teeOffAt);
+  const spotsLabel = openSpots === 1 ? "1 open spot" : `${openSpots} open spots`;
+  const subject = `New tee time at ${course} — ${when} (${spotsLabel})`;
+
+  const text =
+    `Hi ${recipientName},\n\n` +
+    `${bookerName} just booked a new tee time at ${course} on ${when}. ` +
+    `There ${openSpots === 1 ? "is" : "are"} ${spotsLabel} — want in?\n\n` +
+    `Join: ${joinUrl}\n` +
+    `Details: ${detailUrl}\n`;
+
+  const html = shell(
+    `
+        <p style="margin:0 0 12px 0;">Hi ${escapeHtml(recipientName)},</p>
+        <p style="margin:0 0 16px 0;"><strong>${escapeHtml(bookerName)}</strong> just booked a tee time with room for more.</p>
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 16px 0;width:100%;background-color:#f9fafb;border-radius:8px;">
+          <tr><td style="padding:14px 16px;">
+            <p style="margin:0 0 4px 0;font-size:13px;color:#6b7280;text-transform:uppercase;letter-spacing:0.04em;">Course</p>
+            <p style="margin:0 0 10px 0;font-size:16px;font-weight:600;">${escapeHtml(course)}</p>
+            <p style="margin:0 0 4px 0;font-size:13px;color:#6b7280;text-transform:uppercase;letter-spacing:0.04em;">When</p>
+            <p style="margin:0 0 10px 0;font-size:16px;font-weight:600;">${escapeHtml(when)}</p>
+            <p style="margin:0 0 4px 0;font-size:13px;color:#6b7280;text-transform:uppercase;letter-spacing:0.04em;">Openings</p>
+            <p style="margin:0;font-size:16px;font-weight:600;color:${BRAND_GREEN};">${escapeHtml(spotsLabel)}</p>
+          </td></tr>
+        </table>
+        <div>${btn("Join this group", joinUrl)}${btnSecondary("View details", detailUrl)}</div>
+        <p style="margin:14px 0 0 0;font-size:13px;color:#6b7280;">You're seeing this because the group has open spots. Other registered users got the same heads-up.</p>
+`,
+    { unsubscribeUrl }
+  );
+
+  return { subject, text, html };
+}
+
 export type RosterEntry = {
   name: string;
   confirmed: boolean;

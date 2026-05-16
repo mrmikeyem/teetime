@@ -5,13 +5,15 @@ export type NotificationEvent =
   | "reminder"
   | "addedTo"
   | "joinedByOther"
-  | "leftByOther";
+  | "leftByOther"
+  | "newTeeTime";
 
-const COLUMN_BY_EVENT: Record<NotificationEvent, "reminders" | "addedTo" | "joinedByOther" | "leftByOther"> = {
+const COLUMN_BY_EVENT: Record<NotificationEvent, "reminders" | "addedTo" | "joinedByOther" | "leftByOther" | "newTeeTime"> = {
   reminder: "reminders",
   addedTo: "addedTo",
   joinedByOther: "joinedByOther",
   leftByOther: "leftByOther",
+  newTeeTime: "newTeeTime",
 };
 
 export async function shouldNotify(
@@ -42,6 +44,7 @@ function evaluate(
     addedTo: boolean;
     joinedByOther: boolean;
     leftByOther: boolean;
+    newTeeTime: boolean;
     unsubscribedAll: boolean;
   } | null,
   event: NotificationEvent

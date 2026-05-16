@@ -43,6 +43,7 @@ model NotificationPreference {
   addedTo          Boolean  @default(true) @map("added_to")
   joinedByOther    Boolean  @default(true) @map("joined_by_other")
   leftByOther      Boolean  @default(true) @map("left_by_other")
+  newTeeTime       Boolean  @default(true) @map("new_tee_time")
   unsubscribedAll  Boolean  @default(false) @map("unsubscribed_all")
   updatedAt        DateTime @updatedAt @map("updated_at")
 

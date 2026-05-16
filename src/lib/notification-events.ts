@@ -5,6 +5,7 @@ import {
   addedToTeeTimeEmail,
   joinedTeeTimeEmail,
   leftTeeTimeEmail,
+  newTeeTimeAvailableEmail,
   type RosterEntry,
 } from "@/lib/email-templates";
 import { shouldNotify, filterEligibleUsers } from "@/lib/notifications";
@@ -208,5 +209,86 @@ export async function notifyMemberLeft(opts: {
     );
   } catch (err) {
     console.error("[notifyMemberLeft] failed:", err);
+  }
+}
+
+/**
+ * Broadcast a newly-created tee time to every registered user not on it,
+ * provided the tee time has open spots. Respects newTeeTime pref.
+ */
+export async function notifyNewTeeTime(opts: {
+  teeTimeId: string;
+  bookerUserId: string;
+}) {
+  try {
+    const { teeTimeId, bookerUserId } = opts;
+
+    const teeTime = await prisma.teeTime.findUnique({
+      where: { id: teeTimeId },
+      include: {
+        creator: { select: { id: true, name: true } },
+        members: { select: { userId: true } },
+      },
+    });
+    if (!teeTime) return;
+    if (teeTime.teeOffAt.getTime() < Date.now()) return;
+
+    const openSpots = teeTime.partySize - teeTime.members.length;
+    if (openSpots <= 0) return;
+
+    const memberUserIds = new Set(
+      teeTime.members.map((m) => m.userId).filter((id): id is string => !!id)
+    );
+
+    const candidates = await prisma.user.findMany({
+      where: {
+        id: { notIn: Array.from(memberUserIds), not: bookerUserId },
+        email: { not: null },
+      },
+      select: { id: true, name: true, email: true },
+    });
+    if (candidates.length === 0) return;
+
+    const eligibleIds = await filterEligibleUsers(
+      candidates.map((c) => c.id),
+      "newTeeTime"
+    );
+    if (eligibleIds.length === 0) return;
+
+    const eligibleSet = new Set(eligibleIds);
+    const recipients = candidates.filter((c) => eligibleSet.has(c.id));
+
+    // Token TTL: until 1h after tee-off, capped at 14 days.
+    const ttlMs = Math.min(
+      14 * 24 * 60 * 60 * 1000,
+      teeTime.teeOffAt.getTime() + 60 * 60 * 1000 - Date.now()
+    );
+    if (ttlMs <= 0) return;
+
+    await Promise.allSettled(
+      recipients.map(async (r) => {
+        const [join, unsubscribe] = await Promise.all([
+          mintToken({ userId: r.id, action: "join", teeTimeId, ttlMs }),
+          mintToken({
+            userId: r.id,
+            action: "unsubscribe",
+            ttlMs: UNSUBSCRIBE_TTL_MS,
+          }),
+        ]);
+        const { subject, text, html } = newTeeTimeAvailableEmail({
+          recipientName: r.name,
+          bookerName: teeTime.creator.name,
+          course: teeTime.course,
+          teeOffAt: teeTime.teeOffAt,
+          openSpots,
+          joinUrl: buildActionUrl(join.rawToken, "join"),
+          detailUrl: `${APP_URL}/tee-times/${teeTimeId}`,
+          unsubscribeUrl: buildActionUrl(unsubscribe.rawToken, "unsubscribe"),
+        });
+        await sendMail({ to: r.email!, subject, text, html });
+      })
+    );
+  } catch (err) {
+    console.error("[notifyNewTeeTime] failed:", err);
   }
 }

@@ -7,6 +7,7 @@ type Prefs = {
   addedTo: boolean;
   joinedByOther: boolean;
   leftByOther: boolean;
+  newTeeTime: boolean;
   unsubscribedAll: boolean;
 };
 
@@ -24,6 +25,11 @@ const ROWS: Array<{
     key: "addedTo",
     label: "When you're added to a tee time",
     description: "Someone books you into a group.",
+  },
+  {
+    key: "newTeeTime",
+    label: "New tee times with open spots",
+    description: "Someone books a tee time and there's room to join.",
   },
   {
     key: "joinedByOther",

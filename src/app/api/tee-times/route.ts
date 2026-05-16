@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { geocodeCourse } from "@/lib/weather";
-import { notifyAddedToTeeTime } from "@/lib/notification-events";
+import { notifyAddedToTeeTime, notifyNewTeeTime } from "@/lib/notification-events";
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -80,11 +80,12 @@ export async function POST(req: Request) {
     },
   });
 
-  await Promise.allSettled(
-    extraUserIds.map((userId) =>
+  await Promise.allSettled([
+    ...extraUserIds.map((userId) =>
       notifyAddedToTeeTime({ userId, teeTimeId: teeTime.id, addedByUserId: creatorId })
-    )
-  );
+    ),
+    notifyNewTeeTime({ teeTimeId: teeTime.id, bookerUserId: creatorId }),
+  ]);
 
   return NextResponse.json({ id: teeTime.id }, { status: 201 });
 }

@@ -14,6 +14,7 @@ export async function POST(req: Request) {
     addedTo: !!body.addedTo,
     joinedByOther: !!body.joinedByOther,
     leftByOther: !!body.leftByOther,
+    newTeeTime: !!body.newTeeTime,
     unsubscribedAll: !!body.unsubscribedAll,
   };
 

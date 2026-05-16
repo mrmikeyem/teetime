@@ -76,6 +76,7 @@ export default async function AccountPage() {
             addedTo: prefs?.addedTo ?? true,
             joinedByOther: prefs?.joinedByOther ?? true,
             leftByOther: prefs?.leftByOther ?? true,
+            newTeeTime: prefs?.newTeeTime ?? true,
             unsubscribedAll: prefs?.unsubscribedAll ?? false,
           }}
         />
