@@ -18,7 +18,7 @@ const transport = host
   ? nodemailer.createTransport({
       host,
       port,
-      secure: port === 465,
+      secure: port === 465 || port === 2465,
       auth: user && pass ? { user, pass } : undefined,
     })
   : null;
