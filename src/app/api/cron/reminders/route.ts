@@ -97,6 +97,13 @@ export async function POST(req: Request) {
     }
   }
 
+  const url = new URL(req.url);
+  const forceCleanup = url.searchParams.get("force") === "cleanup";
+  const cleanup =
+    forceCleanup || now.getUTCMinutes() < WINDOW_MIN
+      ? await runCleanup(now)
+      : null;
+
   return NextResponse.json({
     now: now.toISOString(),
     teeTimesChecked: teeTimes.length,
@@ -104,7 +111,68 @@ export async function POST(req: Request) {
     skippedPrefs,
     failed,
     errors,
+    cleanup,
   });
+}
+
+/**
+ * Hourly housekeeping. Runs once per hour (during the first tick after :00).
+ * Deletes tee times whose tee-off day has passed in America/Chicago, orphaned
+ * guests, expired email-action tokens, and used password-reset tokens.
+ */
+async function runCleanup(now: Date) {
+  const cutoff = startOfTodayInCT(now);
+
+  const [teeTimes, tokens, resetTokens] = await Promise.all([
+    prisma.teeTime.deleteMany({ where: { teeOffAt: { lt: cutoff } } }),
+    prisma.emailActionToken.deleteMany({ where: { expiresAt: { lt: now } } }),
+    prisma.passwordResetToken.deleteMany({
+      where: { OR: [{ usedAt: { not: null } }, { expiresAt: { lt: now } }] },
+    }),
+  ]);
+
+  // Orphaned guests = guests with no remaining tee_time_members rows.
+  // The TeeTimeMember rows for the deleted tee times were cascade-deleted above.
+  const orphans = await prisma.guest.deleteMany({
+    where: { teeTimeMembers: { none: {} } },
+  });
+
+  return {
+    teeTimesDeleted: teeTimes.count,
+    orphanGuestsDeleted: orphans.count,
+    actionTokensDeleted: tokens.count,
+    resetTokensDeleted: resetTokens.count,
+    cutoff: cutoff.toISOString(),
+  };
+}
+
+/**
+ * Returns the UTC instant equal to midnight America/Chicago of the current day.
+ * Tee times with teeOffAt < this instant are "yesterday or earlier" in CT.
+ */
+function startOfTodayInCT(now: Date): Date {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Chicago",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).formatToParts(now);
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "0";
+  const ctY = Number(get("year"));
+  const ctM = Number(get("month"));
+  const ctD = Number(get("day"));
+  const ctH = Number(get("hour"));
+  const ctMin = Number(get("minute"));
+  const ctS = Number(get("second"));
+  // Offset between CT wall clock and UTC at this moment (handles DST automatically).
+  const ctAsIfUtc = Date.UTC(ctY, ctM - 1, ctD, ctH, ctMin, ctS);
+  const offsetMs = now.getTime() - ctAsIfUtc;
+  // Midnight CT today = UTC instant of (today in CT, 00:00:00) plus the offset.
+  return new Date(Date.UTC(ctY, ctM - 1, ctD, 0, 0, 0) + offsetMs);
 }
 
 function authorize(req: Request): boolean {
