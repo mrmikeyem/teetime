@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { Countdown } from "./countdown";
-import { MonthCalendar } from "./month-calendar";
+import { TeeTimeCalendar } from "./calendar";
 
 export type TeeTimeListItem = {
   id: string;
@@ -28,6 +29,8 @@ export function ListWithCalendar({
   teeTimes: TeeTimeListItem[];
   dailyWeather: DailyWeatherEntry[];
 }) {
+  const [calendarOpen, setCalendarOpen] = useState(false);
+
   const dailyMap = new Map(dailyWeather.map((d) => [d.date, d]));
 
   const byDate = new Map<string, TeeTimeListItem[]>();
@@ -40,8 +43,6 @@ export function ListWithCalendar({
 
   return (
     <div className="space-y-4">
-      <MonthCalendar teeTimesByDate={byDate} dailyWeather={dailyMap} />
-
       {teeTimes.length === 0 ? (
         <p className="rounded-lg border border-dashed border-gray-300 bg-white p-6 text-center text-sm text-gray-500">
           No upcoming tee times. Be the first to put one on the board.
@@ -103,6 +104,25 @@ export function ListWithCalendar({
           })}
         </ul>
       )}
+
+      <div className="rounded-lg border border-gray-200 bg-white">
+        <button
+          type="button"
+          onClick={() => setCalendarOpen((v) => !v)}
+          aria-expanded={calendarOpen}
+          className="flex w-full items-center justify-between rounded-lg px-4 py-3 text-left text-sm font-semibold text-gray-700 hover:bg-gray-50"
+        >
+          <span>{calendarOpen ? "Hide calendar" : "Browse the calendar"}</span>
+          <span aria-hidden className="text-gray-400">
+            {calendarOpen ? "▾" : "▸"}
+          </span>
+        </button>
+        {calendarOpen && (
+          <div className="border-t border-gray-100 p-3">
+            <TeeTimeCalendar teeTimesByDate={byDate} dailyWeather={dailyMap} />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
