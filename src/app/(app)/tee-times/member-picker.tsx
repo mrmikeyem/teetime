@@ -101,15 +101,15 @@ export function MemberPicker({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search by name..."
-          className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
+          className="block w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
         />
         {query.trim().length > 0 && (
-          <ul className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow-md">
+          <ul className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-md">
             {searching && (
-              <li className="px-3 py-2 text-xs text-gray-500">Searching…</li>
+              <li className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">Searching…</li>
             )}
             {!searching && totalResults === 0 && (
-              <li className="px-3 py-2 text-xs text-gray-500">
+              <li className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">
                 No matches. Add manually below.
               </li>
             )}
@@ -118,7 +118,7 @@ export function MemberPicker({
                 <button
                   type="button"
                   onClick={() => handlePick({ kind: "user", id: u.id, name: u.name })}
-                  className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-emerald-50"
+                  className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-emerald-50 dark:hover:bg-emerald-900/30"
                 >
                   <span>{u.name}</span>
                 </button>
@@ -129,10 +129,10 @@ export function MemberPicker({
                 <button
                   type="button"
                   onClick={() => handlePick({ kind: "guest", id: g.id, name: g.name })}
-                  className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-emerald-50"
+                  className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-emerald-50 dark:hover:bg-emerald-900/30"
                 >
                   <span>{g.name}</span>
-                  <span className="text-xs text-gray-400">guest</span>
+                  <span className="text-xs text-gray-400 dark:text-gray-500">guest</span>
                 </button>
               </li>
             ))}
@@ -141,7 +141,7 @@ export function MemberPicker({
       </div>
 
       {error && (
-        <div className="rounded-md bg-red-50 p-2 text-xs text-red-600">
+        <div className="rounded-md bg-red-50 dark:bg-red-900/30 p-2 text-xs text-red-600 dark:text-red-300">
           {error}
         </div>
       )}
@@ -168,7 +168,7 @@ export function MemberPicker({
                 }
               }}
               placeholder="First"
-              className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
+              className="min-w-0 flex-1 rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2.5 text-sm focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
             />
             <input
               type="text"
@@ -181,7 +181,7 @@ export function MemberPicker({
                 }
               }}
               placeholder="Last"
-              className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
+              className="min-w-0 flex-1 rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2.5 text-sm focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
             />
           </div>
           <div className="flex gap-2">
@@ -199,7 +199,7 @@ export function MemberPicker({
                 setShowManual(false);
                 setError("");
               }}
-              className="rounded-lg bg-gray-100 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-200"
+              className="rounded-lg bg-gray-100 dark:bg-gray-800 px-4 py-2.5 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-200"
             >
               Cancel
             </button>

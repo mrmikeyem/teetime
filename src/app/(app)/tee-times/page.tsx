@@ -89,7 +89,7 @@ export default async function TeeTimesPage() {
             <h1 className="truncate text-lg font-bold leading-tight sm:text-2xl">
               Tee Time Tracker
             </h1>
-            <p className="truncate text-xs text-gray-500 sm:text-sm">
+            <p className="truncate text-xs text-gray-500 dark:text-gray-400 sm:text-sm">
               Hi {session.user.name}.
             </p>
           </div>
@@ -118,7 +118,7 @@ export default async function TeeTimesPage() {
           >
             <button
               type="submit"
-              className="rounded-lg bg-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-300"
+              className="rounded-lg bg-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
             >
               Sign out
             </button>

@@ -78,7 +78,7 @@ export function PreferencesForm({ initial }: { initial: Prefs }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <ul className="divide-y divide-gray-100">
+      <ul className="divide-y divide-gray-100 dark:divide-gray-800">
         {ROWS.map((row) => (
           <li
             key={row.key}
@@ -88,7 +88,7 @@ export function PreferencesForm({ initial }: { initial: Prefs }) {
           >
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium">{row.label}</p>
-              <p className="text-xs text-gray-500">{row.description}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{row.description}</p>
             </div>
             <Toggle
               checked={prefs[row.key]}
@@ -99,11 +99,11 @@ export function PreferencesForm({ initial }: { initial: Prefs }) {
         ))}
       </ul>
 
-      <div className="rounded-md border border-gray-200 bg-gray-50 p-3">
+      <div className="rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium">Unsubscribe from all emails</p>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-gray-500 dark:text-gray-400">
               Master kill switch. Overrides the toggles above.
             </p>
           </div>
@@ -115,12 +115,12 @@ export function PreferencesForm({ initial }: { initial: Prefs }) {
       </div>
 
       {error && (
-        <div className="rounded-md bg-red-50 p-3 text-sm text-red-600">
+        <div className="rounded-md bg-red-50 dark:bg-red-900/30 p-3 text-sm text-red-600 dark:text-red-300">
           {error}
         </div>
       )}
       {status === "saved" && (
-        <div className="rounded-md bg-emerald-50 p-3 text-sm text-emerald-800">
+        <div className="rounded-md bg-emerald-50 dark:bg-emerald-900/30 p-3 text-sm text-emerald-800 dark:text-emerald-300">
           Saved.
         </div>
       )}
@@ -153,7 +153,7 @@ function Toggle({
       disabled={disabled}
       onClick={() => onChange(!checked)}
       className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
-        checked ? "bg-emerald-700" : "bg-gray-300"
+        checked ? "bg-emerald-700" : "bg-gray-300 dark:bg-gray-700"
       } ${disabled ? "cursor-not-allowed" : ""}`}
     >
       <span

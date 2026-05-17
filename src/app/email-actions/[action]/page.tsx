@@ -77,18 +77,18 @@ export default async function EmailActionPage({
           <Logo size={96} priority className="h-20 w-20 sm:h-24 sm:w-24" />
           <h1 className="mt-3 text-xl font-bold sm:text-2xl">{labels.heading}</h1>
           {row.user?.name && (
-            <p className="mt-1 text-sm text-gray-500">Signed in as {row.user.name}</p>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Signed in as {row.user.name}</p>
           )}
         </div>
 
         {teeTime && (
-          <div className="rounded-lg bg-gray-50 p-4 text-center text-sm">
+          <div className="rounded-lg bg-gray-50 dark:bg-gray-800/50 p-4 text-center text-sm">
             <p className="font-semibold">{teeTime.course}</p>
-            <p className="text-gray-500">{formatTeeOff(teeTime.teeOffAt)}</p>
+            <p className="text-gray-500 dark:text-gray-400">{formatTeeOff(teeTime.teeOffAt)}</p>
           </div>
         )}
 
-        <p className="text-center text-sm text-gray-600">{labels.body}</p>
+        <p className="text-center text-sm text-gray-600 dark:text-gray-300">{labels.body}</p>
 
         <form action={`/api/email-actions/${action}`} method="POST" className="space-y-3">
           <input type="hidden" name="token" value={token} />
@@ -129,7 +129,7 @@ function errorView(message: string) {
           <Logo size={96} className="h-20 w-20 sm:h-24 sm:w-24" />
           <h1 className="mt-3 text-xl font-bold sm:text-2xl">Can't do that</h1>
         </div>
-        <p className="text-center text-sm text-gray-600">{message}</p>
+        <p className="text-center text-sm text-gray-600 dark:text-gray-300">{message}</p>
       </div>
     </div>
   );

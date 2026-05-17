@@ -48,7 +48,7 @@ function ResetPasswordForm() {
 
   if (!token) {
     return (
-      <div className="rounded-md bg-red-50 p-4 text-sm text-red-600">
+      <div className="rounded-md bg-red-50 dark:bg-red-900/30 p-4 text-sm text-red-600 dark:text-red-300">
         Missing or invalid reset link.
       </div>
     );
@@ -56,7 +56,7 @@ function ResetPasswordForm() {
 
   if (done) {
     return (
-      <div className="rounded-md bg-emerald-50 p-4 text-sm text-emerald-800">
+      <div className="rounded-md bg-emerald-50 dark:bg-emerald-900/30 p-4 text-sm text-emerald-800 dark:text-emerald-300">
         Password updated. Redirecting to sign in...
       </div>
     );
@@ -65,7 +65,7 @@ function ResetPasswordForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {error && (
-        <div className="rounded-md bg-red-50 p-3 text-sm text-red-600">
+        <div className="rounded-md bg-red-50 dark:bg-red-900/30 p-3 text-sm text-red-600 dark:text-red-300">
           {error}
         </div>
       )}
@@ -81,7 +81,7 @@ function ResetPasswordForm() {
           required
           minLength={6}
           autoComplete="new-password"
-          className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
+          className="mt-1 block w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2.5 text-sm focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
         />
       </div>
 
@@ -96,7 +96,7 @@ function ResetPasswordForm() {
           required
           minLength={6}
           autoComplete="new-password"
-          className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
+          className="mt-1 block w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2.5 text-sm focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
         />
       </div>
 
@@ -120,11 +120,11 @@ export default function ResetPasswordPage() {
           <h1 className="mt-3 text-xl font-bold sm:text-2xl">Choose a new password</h1>
         </div>
 
-        <Suspense fallback={<div className="text-sm text-gray-500">Loading...</div>}>
+        <Suspense fallback={<div className="text-sm text-gray-500 dark:text-gray-400">Loading...</div>}>
           <ResetPasswordForm />
         </Suspense>
 
-        <p className="text-center text-sm text-gray-500">
+        <p className="text-center text-sm text-gray-500 dark:text-gray-400">
           <Link
             href="/login"
             className="font-semibold text-emerald-700 hover:text-emerald-800"

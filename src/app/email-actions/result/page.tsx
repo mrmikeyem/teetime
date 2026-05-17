@@ -22,14 +22,14 @@ export default async function ResultPage({
         <div
           className={`rounded-md p-4 text-center text-sm ${
             ok
-              ? "bg-emerald-50 text-emerald-800"
-              : "bg-red-50 text-red-700"
+              ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300"
+              : "bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300"
           }`}
         >
           {message ?? (ok ? "Action complete." : "Something went wrong.")}
         </div>
 
-        <p className="text-center text-sm text-gray-500">
+        <p className="text-center text-sm text-gray-500 dark:text-gray-400">
           <Link
             href="/tee-times"
             className="font-semibold text-emerald-700 hover:text-emerald-800"

@@ -57,14 +57,14 @@ export default function RegisterPage() {
         <div className="flex flex-col items-center text-center">
           <Logo size={96} priority className="h-20 w-20 sm:h-24 sm:w-24" />
           <h1 className="mt-3 text-xl font-bold sm:text-2xl">Create Account</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             Phone is optional now — used for text reminders later.
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <div className="rounded-md bg-red-50 p-3 text-sm text-red-600">
+            <div className="rounded-md bg-red-50 dark:bg-red-900/30 p-3 text-sm text-red-600 dark:text-red-300">
               {error}
             </div>
           )}
@@ -80,7 +80,7 @@ export default function RegisterPage() {
                 type="text"
                 required
                 autoComplete="given-name"
-                className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
+                className="mt-1 block w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2.5 text-sm focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
               />
             </div>
             <div className="flex-1">
@@ -93,7 +93,7 @@ export default function RegisterPage() {
                 type="text"
                 required
                 autoComplete="family-name"
-                className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
+                className="mt-1 block w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2.5 text-sm focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
               />
             </div>
           </div>
@@ -109,7 +109,7 @@ export default function RegisterPage() {
               required
               autoComplete="email"
               placeholder="you@example.com"
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm lowercase focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
+              className="mt-1 block w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2.5 text-sm lowercase focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
             />
           </div>
 
@@ -123,7 +123,7 @@ export default function RegisterPage() {
               type="tel"
               autoComplete="tel"
               placeholder="+1 555 555 5555"
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
+              className="mt-1 block w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2.5 text-sm focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
             />
           </div>
 
@@ -138,7 +138,7 @@ export default function RegisterPage() {
               required
               minLength={6}
               autoComplete="new-password"
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
+              className="mt-1 block w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2.5 text-sm focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
             />
           </div>
 
@@ -151,7 +151,7 @@ export default function RegisterPage() {
           </button>
         </form>
 
-        <p className="text-center text-sm text-gray-500">
+        <p className="text-center text-sm text-gray-500 dark:text-gray-400">
           Already have an account?{" "}
           <Link
             href="/login"

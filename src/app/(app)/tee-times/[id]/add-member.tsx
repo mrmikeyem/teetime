@@ -38,11 +38,11 @@ export function AddMember({
 
   return (
     <div className="space-y-2">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500">
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
         Add someone
       </h2>
       {error && (
-        <div className="rounded-md bg-red-50 p-2 text-xs text-red-600">
+        <div className="rounded-md bg-red-50 dark:bg-red-900/30 p-2 text-xs text-red-600 dark:text-red-300">
           {error}
         </div>
       )}

@@ -52,14 +52,14 @@ export function InstallNudge() {
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-50 px-3 pb-3 pointer-events-none">
-      <div className="pointer-events-auto mx-auto max-w-md rounded-xl border border-gray-200 bg-white p-3 shadow-lg">
+      <div className="pointer-events-auto mx-auto max-w-md rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 shadow-lg">
         <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-50">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-900/30">
             <ShareIcon />
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold">Install Tee Time Tracker</p>
-            <p className="mt-0.5 text-xs text-gray-600">
+            <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-300">
               Tap <span aria-hidden>⎙</span> Share, then{" "}
               <span className="font-semibold">Add to Home Screen</span> for the
               app experience.
@@ -69,7 +69,7 @@ export function InstallNudge() {
             type="button"
             onClick={dismiss}
             aria-label="Dismiss"
-            className="shrink-0 rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            className="shrink-0 rounded-md p-1 text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700"
           >
             ✕
           </button>

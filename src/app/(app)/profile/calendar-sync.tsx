@@ -60,7 +60,7 @@ export function CalendarSync({
     return (
       <div className="space-y-3">
         {error && (
-          <div className="rounded-md bg-red-50 p-3 text-sm text-red-600">
+          <div className="rounded-md bg-red-50 dark:bg-red-900/30 p-3 text-sm text-red-600 dark:text-red-300">
             {error}
           </div>
         )}
@@ -72,7 +72,7 @@ export function CalendarSync({
         >
           {generating ? "Generating…" : "Generate calendar feed"}
         </button>
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-gray-500 dark:text-gray-400">
           We'll create a unique URL just for you. Keep it private — anyone with
           the URL can see your tee times.
         </p>
@@ -106,7 +106,7 @@ export function CalendarSync({
         />
       </div>
 
-      <details className="text-xs text-gray-600">
+      <details className="text-xs text-gray-600 dark:text-gray-300">
         <summary className="cursor-pointer font-semibold text-emerald-700 hover:text-emerald-800">
           How to subscribe
         </summary>
@@ -126,10 +126,10 @@ export function CalendarSync({
         </ul>
       </details>
 
-      <div className="border-t border-gray-100 pt-3">
+      <div className="border-t border-gray-100 dark:border-gray-800 pt-3">
         {confirmRotate ? (
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs text-gray-600">
+            <span className="text-xs text-gray-600 dark:text-gray-300">
               Old URL stops working. Continue?
             </span>
             <button
@@ -143,7 +143,7 @@ export function CalendarSync({
             <button
               type="button"
               onClick={() => setConfirmRotate(false)}
-              className="rounded-md bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200"
+              className="rounded-md bg-gray-100 dark:bg-gray-800 px-3 py-1.5 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-200"
             >
               Cancel
             </button>
@@ -152,7 +152,7 @@ export function CalendarSync({
           <button
             type="button"
             onClick={() => setConfirmRotate(true)}
-            className="text-xs text-gray-500 hover:text-gray-700 hover:underline"
+            className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 hover:underline"
           >
             Rotate URL (revoke and regenerate)
           </button>
@@ -174,18 +174,18 @@ function UrlRow({
   copied: boolean;
 }) {
   return (
-    <div className="rounded-md border border-gray-200 p-3">
+    <div className="rounded-md border border-gray-200 dark:border-gray-700 p-3">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-semibold text-gray-700">{label}</span>
+        <span className="text-xs font-semibold text-gray-700 dark:text-gray-200">{label}</span>
         <button
           type="button"
           onClick={onCopy}
-          className="rounded-md bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+          className="rounded-md bg-emerald-50 dark:bg-emerald-900/30 px-2 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/40"
         >
           {copied ? "Copied!" : "Copy"}
         </button>
       </div>
-      <p className="mt-1 break-all font-mono text-[11px] text-gray-500">
+      <p className="mt-1 break-all font-mono text-[11px] text-gray-500 dark:text-gray-400">
         {url}
       </p>
     </div>

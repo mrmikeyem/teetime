@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Providers } from "./providers";
 import { InstallNudge } from "./components/install-nudge";
+import { ThemeProvider } from "./components/theme-provider";
+import { ThemeScript } from "./components/theme-script";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -61,7 +63,10 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#15803d",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#15803d" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+  ],
 };
 
 export default function RootLayout({
@@ -73,10 +78,16 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col overflow-x-hidden bg-gray-50 text-gray-900">
-        <Providers>{children}</Providers>
-        <InstallNudge />
+      <head>
+        <ThemeScript />
+      </head>
+      <body className="min-h-full flex flex-col overflow-x-hidden bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
+        <ThemeProvider>
+          <Providers>{children}</Providers>
+          <InstallNudge />
+        </ThemeProvider>
       </body>
     </html>
   );

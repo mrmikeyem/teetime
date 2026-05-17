@@ -69,17 +69,17 @@ export default async function TeeTimeDetailPage({
 
       <header className="space-y-2">
         <h1 className="text-2xl font-bold">{teeTime.course}</h1>
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-gray-600 dark:text-gray-300">
           {formatDateTime(teeTime.teeOffAt)} — booked by {teeTime.creator.name}
         </p>
         <div className="flex flex-wrap items-center gap-2">
           <span
             className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
               tooManyConfirmed
-                ? "bg-red-100 text-red-700"
+                ? "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300"
                 : confirmedCount === teeTime.partySize
-                ? "bg-emerald-100 text-emerald-800"
-                : "bg-gray-100 text-gray-700"
+                ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300"
+                : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200"
             }`}
           >
             {confirmedCount}/{teeTime.partySize} confirmed
@@ -87,7 +87,7 @@ export default async function TeeTimeDetailPage({
           </span>
           {overCapacity && (
             <span
-              className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800"
+              className="rounded-full bg-amber-100 dark:bg-amber-900/40 px-2.5 py-1 text-xs font-semibold text-amber-800 dark:text-amber-300"
               title={`${teeTime.members.length} signed up for a party of ${teeTime.partySize}`}
             >
               ⚠️ Overbooked · {teeTime.members.length}/{teeTime.partySize}
@@ -95,23 +95,23 @@ export default async function TeeTimeDetailPage({
           )}
           <Countdown
             teeOffAt={teeTime.teeOffAt.toISOString()}
-            className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700"
+            className="rounded-full bg-emerald-50 dark:bg-emerald-900/30 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300"
           />
           {weather && <WeatherChip weather={weather} />}
         </div>
         {teeTime.notes && (
-          <p className="mt-2 rounded-lg bg-gray-50 p-3 text-sm text-gray-700">
+          <p className="mt-2 rounded-lg bg-gray-50 dark:bg-gray-800/50 p-3 text-sm text-gray-700 dark:text-gray-200">
             {teeTime.notes}
           </p>
         )}
       </header>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
           Group ({teeTime.members.length} player{teeTime.members.length === 1 ? "" : "s"})
         </h2>
         {teeTime.members.length === 0 ? (
-          <p className="text-sm text-gray-500">No one signed up yet.</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">No one signed up yet.</p>
         ) : (
           <ul className="space-y-2">
             {teeTime.members.map((m) => {
@@ -149,7 +149,7 @@ export default async function TeeTimeDetailPage({
         excludeGuestIds={excludeGuestIds}
       />
 
-      <div className="flex flex-wrap items-center justify-end gap-2 border-t border-gray-200 pt-4">
+      <div className="flex flex-wrap items-center justify-end gap-2 border-t border-gray-200 dark:border-gray-700 pt-4">
         <Link
           href={`/tee-times/${teeTime.id}/edit`}
           className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800"

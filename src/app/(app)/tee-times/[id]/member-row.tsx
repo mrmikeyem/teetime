@@ -52,17 +52,17 @@ export function MemberRow({
   }
 
   return (
-    <li className="flex items-center justify-between gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
+    <li className="flex items-center justify-between gap-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm">
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className="truncate font-medium">{name}</span>
           {isGuest && (
-            <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-gray-500">
+            <span className="rounded bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-gray-500 dark:text-gray-400">
               guest
             </span>
           )}
         </div>
-        <div className="text-xs text-gray-500">added by {addedByLabel}</div>
+        <div className="text-xs text-gray-500 dark:text-gray-400">added by {addedByLabel}</div>
       </div>
       <button
         type="button"
@@ -70,7 +70,7 @@ export function MemberRow({
         disabled={busy}
         className={`rounded-full px-3 py-1.5 text-xs font-semibold disabled:opacity-50 ${
           confirmed
-            ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
+            ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-200"
             : "bg-yellow-100 text-yellow-800 hover:bg-yellow-200"
         }`}
       >
@@ -81,7 +81,7 @@ export function MemberRow({
         onClick={remove}
         disabled={busy}
         aria-label={`Remove ${name}`}
-        className="flex h-9 w-9 items-center justify-center rounded-md text-gray-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+        className="flex h-9 w-9 items-center justify-center rounded-md text-gray-400 dark:text-gray-500 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-300 disabled:opacity-50"
       >
         ✕
       </button>

@@ -77,7 +77,7 @@ export function TeeTimeCalendar({
           type="button"
           onClick={() => shift(-1)}
           disabled={!canGoPrev}
-          className="flex h-9 w-9 items-center justify-center rounded-md text-base text-gray-600 hover:bg-gray-100 disabled:opacity-30"
+          className="flex h-9 w-9 items-center justify-center rounded-md text-base text-gray-600 hover:bg-gray-100 disabled:opacity-30 dark:text-gray-300 dark:hover:bg-gray-800"
           aria-label={view === "week" ? "Previous week" : "Previous month"}
         >
           ‹
@@ -88,7 +88,7 @@ export function TeeTimeCalendar({
         <button
           type="button"
           onClick={() => shift(1)}
-          className="flex h-9 w-9 items-center justify-center rounded-md text-base text-gray-600 hover:bg-gray-100"
+          className="flex h-9 w-9 items-center justify-center rounded-md text-base text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
           aria-label={view === "week" ? "Next week" : "Next month"}
         >
           ›
@@ -96,14 +96,14 @@ export function TeeTimeCalendar({
       </div>
 
       <div className="mb-3 flex items-center justify-between gap-2">
-        <div className="inline-flex rounded-md border border-gray-200 bg-white p-0.5 text-xs">
+        <div className="inline-flex rounded-md border border-gray-200 bg-white p-0.5 text-xs dark:border-gray-700 dark:bg-gray-900">
           <button
             type="button"
             onClick={() => setView("week")}
             className={`rounded px-3 py-1 font-semibold ${
               view === "week"
                 ? "bg-emerald-700 text-white"
-                : "text-gray-600 hover:bg-gray-50"
+                : "text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
             }`}
           >
             Week
@@ -114,7 +114,7 @@ export function TeeTimeCalendar({
             className={`rounded px-3 py-1 font-semibold ${
               view === "month"
                 ? "bg-emerald-700 text-white"
-                : "text-gray-600 hover:bg-gray-50"
+                : "text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
             }`}
           >
             Month
@@ -123,7 +123,7 @@ export function TeeTimeCalendar({
         <button
           type="button"
           onClick={() => setAnchor(today)}
-          className="rounded-md px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
+          className="rounded-md px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/30"
         >
           Today
         </button>
@@ -133,7 +133,7 @@ export function TeeTimeCalendar({
         {DAY_LABELS.map((d, i) => (
           <div
             key={i}
-            className="text-center text-[10px] font-semibold uppercase tracking-wide text-gray-400"
+            className="text-center text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500"
           >
             {d}
           </div>
@@ -151,7 +151,7 @@ export function TeeTimeCalendar({
         ))}
       </div>
 
-      <p className="mt-2 text-center text-[10px] text-gray-400">
+      <p className="mt-2 text-center text-[10px] text-gray-400 dark:text-gray-500">
         Tap a day to book a tee time
       </p>
 
@@ -233,17 +233,17 @@ function CalendarCell({
         canBook ? "cursor-pointer" : ""
       } ${
         hasTee
-          ? "bg-emerald-50 text-emerald-900 hover:bg-emerald-100"
+          ? "bg-emerald-50 text-emerald-900 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-100 dark:hover:bg-emerald-900/50"
           : isPast
-          ? "text-gray-300"
-          : "text-gray-700 hover:bg-gray-50"
-      } ${isToday ? "ring-1 ring-emerald-700 ring-inset" : ""}`}
+          ? "text-gray-300 dark:text-gray-700"
+          : "text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
+      } ${isToday ? "ring-1 ring-emerald-700 ring-inset dark:ring-emerald-400" : ""}`}
     >
       <div className="flex items-center justify-between gap-0.5">
         <span className="text-[11px] font-semibold">{cell.getDate()}</span>
         {day && !isPast && (
           <span
-            className="whitespace-nowrap text-[10px] text-gray-500"
+            className="whitespace-nowrap text-[10px] text-gray-500 dark:text-gray-400"
             title={`${day.condition} · ${day.tempF}°`}
             aria-label={`${day.condition}, ${day.tempF}°F`}
           >
@@ -254,13 +254,13 @@ function CalendarCell({
       </div>
       {firstTee && (
         <div className="space-y-0.5">
-          <div className="truncate font-semibold text-emerald-800">
+          <div className="truncate font-semibold text-emerald-800 dark:text-emerald-200">
             {firstTee.course}
           </div>
-          <div className="font-semibold text-emerald-700">
+          <div className="font-semibold text-emerald-700 dark:text-emerald-300">
             {firstTee.members.length}/{firstTee.partySize}
           </div>
-          {extra > 0 && <div className="text-emerald-600">+{extra}</div>}
+          {extra > 0 && <div className="text-emerald-600 dark:text-emerald-400">+{extra}</div>}
         </div>
       )}
     </div>
@@ -277,20 +277,20 @@ function Modal({
   const router = useRouter();
   return (
     <div
-      className="w-full max-w-sm rounded-lg bg-white p-5 shadow-xl"
+      className="w-full max-w-sm rounded-lg bg-white p-5 shadow-xl dark:bg-gray-900"
       onClick={(e) => e.stopPropagation()}
     >
       <h2 className="text-base font-semibold">
         Book a tee time on {formatPretty(date)}?
       </h2>
-      <p className="mt-1 text-sm text-gray-500">
+      <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
         You&apos;ll be taken to the new tee time form with this date filled in.
       </p>
       <div className="mt-4 flex justify-end gap-2">
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-200"
+          className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
         >
           Cancel
         </button>

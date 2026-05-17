@@ -55,13 +55,13 @@ export function WeatherPreview({
   if (!course.trim() || !date || !time) return null;
 
   return (
-    <div className="rounded-lg border border-sky-100 bg-sky-50/40 p-2 text-xs text-sky-800">
+    <div className="rounded-lg border border-sky-100 dark:border-sky-800/60 bg-sky-50/40 dark:bg-sky-900/20 p-2 text-xs text-sky-800 dark:text-sky-300">
       {loading ? (
         <span>Checking forecast…</span>
       ) : weather ? (
         <WeatherChip weather={weather} />
       ) : (
-        <span className="text-gray-500">
+        <span className="text-gray-500 dark:text-gray-400">
           No forecast yet — too far out or course not found.
         </span>
       )}

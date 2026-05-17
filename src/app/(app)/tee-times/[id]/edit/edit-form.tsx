@@ -76,7 +76,7 @@ export function EditForm({
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div className="rounded-md bg-red-50 p-3 text-sm text-red-600">
+          <div className="rounded-md bg-red-50 dark:bg-red-900/30 p-3 text-sm text-red-600 dark:text-red-300">
             {error}
           </div>
         )}
@@ -91,7 +91,7 @@ export function EditForm({
             required
             value={course}
             onChange={(e) => setCourse(e.target.value)}
-            className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
+            className="mt-1 block w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2.5 text-sm focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
           />
           <div className="mt-2 flex flex-wrap gap-1.5">
             {COURSE_SHORTCUTS.map((c) => (
@@ -99,7 +99,7 @@ export function EditForm({
                 key={c}
                 type="button"
                 onClick={() => setCourse(c)}
-                className="rounded-full border border-gray-300 bg-white px-3 py-1.5 text-xs text-gray-700 hover:border-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+                className="rounded-full border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:border-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 hover:text-emerald-800 dark:hover:text-emerald-300"
               >
                 {c}
               </button>
@@ -119,7 +119,7 @@ export function EditForm({
               required
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="mt-1 block w-full min-w-0 appearance-none rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
+              className="mt-1 block w-full min-w-0 appearance-none rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2.5 text-sm focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
             />
           </div>
           <div className="min-w-0 flex-1">
@@ -133,7 +133,7 @@ export function EditForm({
               required
               value={time}
               onChange={(e) => setTime(e.target.value)}
-              className="mt-1 block w-full min-w-0 appearance-none rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
+              className="mt-1 block w-full min-w-0 appearance-none rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2.5 text-sm focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
             />
           </div>
         </div>
@@ -149,7 +149,7 @@ export function EditForm({
                 className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold ${
                   partySize === n
                     ? "border-emerald-700 bg-emerald-700 text-white"
-                    : "border-gray-300 bg-white text-gray-700 hover:border-emerald-700"
+                    : "border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:border-emerald-700"
                 }`}
               >
                 {n}
@@ -168,7 +168,7 @@ export function EditForm({
             rows={3}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
+            className="mt-1 block w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2.5 text-sm focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
           />
         </div>
 

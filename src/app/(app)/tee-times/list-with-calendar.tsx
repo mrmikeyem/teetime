@@ -44,7 +44,7 @@ export function ListWithCalendar({
   return (
     <div className="space-y-4">
       {teeTimes.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-gray-300 bg-white p-6 text-center text-sm text-gray-500">
+        <p className="rounded-lg border border-dashed border-gray-300 bg-white p-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
           No upcoming tee times. Be the first to put one on the board.
         </p>
       ) : (
@@ -57,42 +57,42 @@ export function ListWithCalendar({
             return (
               <li
                 key={t.id}
-                className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
+                className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900"
               >
                 <Link href={`/tee-times/${t.id}`} className="block space-y-1">
                   <div className="flex items-baseline justify-between gap-2">
                     <h2 className="font-semibold">{t.course}</h2>
-                    <span className="text-xs text-gray-500">
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
                       {formatDate(teeOff)}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between gap-2 text-sm text-gray-600">
+                  <div className="flex items-center justify-between gap-2 text-sm text-gray-600 dark:text-gray-300">
                     <span>
                       {formatTime(teeOff)} — {t.creatorName}
                     </span>
                     <Countdown
                       teeOffAt={t.teeOffAt}
-                      className="text-xs text-emerald-700"
+                      className="text-xs text-emerald-700 dark:text-emerald-400"
                     />
                   </div>
                   <div className="flex items-center gap-2 text-xs">
                     <span
                       className={`rounded-full px-2 py-0.5 font-semibold ${
                         tooManyConfirmed
-                          ? "bg-red-100 text-red-700"
+                          ? "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300"
                           : confirmed === t.partySize
-                          ? "bg-emerald-100 text-emerald-800"
-                          : "bg-gray-100 text-gray-700"
+                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
+                          : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
                       }`}
                     >
                       {confirmed}/{t.partySize} confirmed
                     </span>
                     {overCapacity && (
-                      <span className="rounded-full bg-amber-100 px-2 py-0.5 font-semibold text-amber-800">
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 font-semibold text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
                         ⚠️ {t.members.length}/{t.partySize}
                       </span>
                     )}
-                    <span className="truncate text-gray-500">
+                    <span className="truncate text-gray-500 dark:text-gray-400">
                       {t.members.length === 0
                         ? "no one yet"
                         : t.members.map((m) => m.name).join(", ")}
@@ -105,20 +105,20 @@ export function ListWithCalendar({
         </ul>
       )}
 
-      <div className="rounded-lg border border-gray-200 bg-white">
+      <div className="rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
         <button
           type="button"
           onClick={() => setCalendarOpen((v) => !v)}
           aria-expanded={calendarOpen}
-          className="flex w-full items-center justify-between rounded-lg px-4 py-3 text-left text-sm font-semibold text-gray-700 hover:bg-gray-50"
+          className="flex w-full items-center justify-between rounded-lg px-4 py-3 text-left text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-800"
         >
           <span>{calendarOpen ? "Hide calendar" : "Browse the calendar"}</span>
-          <span aria-hidden className="text-gray-400">
+          <span aria-hidden className="text-gray-400 dark:text-gray-500">
             {calendarOpen ? "▾" : "▸"}
           </span>
         </button>
         {calendarOpen && (
-          <div className="border-t border-gray-100 p-3">
+          <div className="border-t border-gray-100 p-3 dark:border-gray-800">
             <TeeTimeCalendar teeTimesByDate={byDate} dailyWeather={dailyMap} />
           </div>
         )}

@@ -4,6 +4,7 @@ import { auth, signOut } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { PreferencesForm } from "./preferences-form";
 import { CalendarSync } from "./calendar-sync";
+import { AppearancePicker } from "./appearance-picker";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +38,7 @@ export default async function AccountPage() {
         >
           <button
             type="submit"
-            className="rounded-lg bg-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-300"
+            className="rounded-lg bg-gray-200 dark:bg-gray-700 px-3 py-2 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-300"
           >
             Sign out
           </button>
@@ -46,34 +47,41 @@ export default async function AccountPage() {
 
       <section className="space-y-1">
         <h1 className="text-2xl font-bold">Profile</h1>
-        <p className="text-sm text-gray-500">Manage your info and notifications.</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400">Manage your info and notifications.</p>
       </section>
 
-      <section className="rounded-lg bg-white p-4 shadow-sm">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">
+      <section className="rounded-lg bg-white dark:bg-gray-900 p-4 shadow-sm">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
           Account
         </h2>
         <dl className="space-y-2 text-sm">
           <div className="flex justify-between">
-            <dt className="text-gray-500">Name</dt>
+            <dt className="text-gray-500 dark:text-gray-400">Name</dt>
             <dd className="font-medium">{user.name}</dd>
           </div>
           <div className="flex justify-between">
-            <dt className="text-gray-500">Username</dt>
-            <dd className="font-mono text-gray-700">{user.username}</dd>
+            <dt className="text-gray-500 dark:text-gray-400">Username</dt>
+            <dd className="font-mono text-gray-700 dark:text-gray-200">{user.username}</dd>
           </div>
           <div className="flex justify-between">
-            <dt className="text-gray-500">Email</dt>
-            <dd className="text-gray-700">{user.email ?? "—"}</dd>
+            <dt className="text-gray-500 dark:text-gray-400">Email</dt>
+            <dd className="text-gray-700 dark:text-gray-200">{user.email ?? "—"}</dd>
           </div>
         </dl>
       </section>
 
-      <section className="rounded-lg bg-white p-4 shadow-sm">
-        <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-gray-500">
+      <section className="rounded-lg bg-white p-4 shadow-sm dark:bg-gray-900">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+          Appearance
+        </h2>
+        <AppearancePicker />
+      </section>
+
+      <section className="rounded-lg bg-white p-4 shadow-sm dark:bg-gray-900">
+        <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
           Sync to your calendar
         </h2>
-        <p className="mb-3 text-xs text-gray-500">
+        <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
           Subscribe in Apple, Google, or Outlook and your tee times appear
           automatically. Updates sync every ~30 min.
         </p>
@@ -83,8 +91,8 @@ export default async function AccountPage() {
         />
       </section>
 
-      <section className="rounded-lg bg-white p-4 shadow-sm">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">
+      <section className="rounded-lg bg-white dark:bg-gray-900 p-4 shadow-sm">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
           Email notifications
         </h2>
         <PreferencesForm

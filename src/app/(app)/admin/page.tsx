@@ -30,13 +30,13 @@ export default async function AdminPage() {
       </Link>
       <header>
         <h1 className="text-2xl font-bold">Admin</h1>
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-gray-500 dark:text-gray-400">
           Manage users and create new accounts.
         </p>
       </header>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
           Users ({users.length})
         </h2>
         <ul className="space-y-2">
@@ -59,11 +59,11 @@ export default async function AdminPage() {
         </ul>
       </section>
 
-      <section className="space-y-3 rounded-lg bg-white p-4 shadow-sm">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500">
+      <section className="space-y-3 rounded-lg bg-white dark:bg-gray-900 p-4 shadow-sm">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
           Create user
         </h2>
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-gray-500 dark:text-gray-400">
           Create a real user account so they can log in.
         </p>
         <CreateUserForm />

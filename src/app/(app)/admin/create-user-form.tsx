@@ -43,12 +43,12 @@ export function CreateUserForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {error && (
-        <div className="rounded-md bg-red-50 p-3 text-sm text-red-600">
+        <div className="rounded-md bg-red-50 dark:bg-red-900/30 p-3 text-sm text-red-600 dark:text-red-300">
           {error}
         </div>
       )}
       {success && (
-        <div className="rounded-md bg-emerald-50 p-3 text-sm text-emerald-700">
+        <div className="rounded-md bg-emerald-50 dark:bg-emerald-900/30 p-3 text-sm text-emerald-700 dark:text-emerald-300">
           {success}
         </div>
       )}
@@ -63,7 +63,7 @@ export function CreateUserForm() {
             name="firstName"
             type="text"
             required
-            className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
+            className="mt-1 block w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2.5 text-sm focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
           />
         </div>
         <div className="flex-1">
@@ -75,7 +75,7 @@ export function CreateUserForm() {
             name="lastName"
             type="text"
             required
-            className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
+            className="mt-1 block w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2.5 text-sm focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
           />
         </div>
       </div>
@@ -91,7 +91,7 @@ export function CreateUserForm() {
           required
           autoComplete="email"
           placeholder="user@example.com"
-          className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm lowercase focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
+          className="mt-1 block w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2.5 text-sm lowercase focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
         />
       </div>
 
@@ -104,7 +104,7 @@ export function CreateUserForm() {
           name="phone"
           type="tel"
           placeholder="+1 555 555 5555"
-          className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
+          className="mt-1 block w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2.5 text-sm focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
         />
       </div>
 
@@ -119,9 +119,9 @@ export function CreateUserForm() {
           required
           minLength={6}
           autoComplete="new-password"
-          className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
+          className="mt-1 block w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2.5 text-sm focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
         />
-        <p className="mt-1 text-xs text-gray-500">
+        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
           Share this with the user — they can change it later.
         </p>
       </div>

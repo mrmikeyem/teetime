@@ -48,7 +48,7 @@ export function DeleteButton({ teeTimeId }: { teeTimeId: string }) {
       className={`rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50 ${
         armed
           ? "bg-red-600 text-white hover:bg-red-700"
-          : "bg-gray-100 text-gray-600 hover:bg-red-50 hover:text-red-600"
+          : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-300"
       }`}
     >
       {busy ? "Deleting…" : armed ? "Tap again to confirm" : "Delete tee time"}

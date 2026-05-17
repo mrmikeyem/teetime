@@ -67,7 +67,7 @@ export function UserRow({ user, isSelf }: UserRowProps) {
   return (
     <li
       className={`rounded-lg border p-3 shadow-sm ${
-        isSelf ? "border-emerald-200 bg-emerald-50" : "border-gray-200 bg-white"
+        isSelf ? "border-emerald-200 bg-emerald-50 dark:bg-emerald-900/30" : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
       }`}
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -77,8 +77,8 @@ export function UserRow({ user, isSelf }: UserRowProps) {
             <span
               className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
                 role === "ADMIN"
-                  ? "bg-emerald-100 text-emerald-800"
-                  : "bg-gray-100 text-gray-600"
+                  ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300"
+                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
               }`}
             >
               {role.toLowerCase()}
@@ -89,11 +89,11 @@ export function UserRow({ user, isSelf }: UserRowProps) {
               </span>
             )}
           </div>
-          <p className="mt-0.5 truncate text-xs text-gray-500">
+          <p className="mt-0.5 truncate text-xs text-gray-500 dark:text-gray-400">
             <span className="font-mono">{user.username}</span>
             {user.email && <> · {user.email}</>}
           </p>
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
             Last login: {formatDate(user.lastLoginAt)}
             {" · "}
             Joined: {formatDate(user.createdAt)}
@@ -107,7 +107,7 @@ export function UserRow({ user, isSelf }: UserRowProps) {
               value={role}
               disabled={roleBusy}
               onChange={(e) => changeRole(e.target.value as "BASIC" | "ADMIN")}
-              className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs disabled:opacity-50"
+              className="rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-xs disabled:opacity-50"
             >
               <option value="BASIC">basic</option>
               <option value="ADMIN">admin</option>
@@ -119,7 +119,7 @@ export function UserRow({ user, isSelf }: UserRowProps) {
               className={`rounded-md px-2.5 py-1 text-xs font-semibold disabled:opacity-50 ${
                 deleteArmed
                   ? "bg-red-600 text-white hover:bg-red-700"
-                  : "bg-gray-100 text-gray-600 hover:bg-red-50 hover:text-red-600"
+                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-300"
               }`}
             >
               {deleting
@@ -132,7 +132,7 @@ export function UserRow({ user, isSelf }: UserRowProps) {
         )}
       </div>
       {error && (
-        <div className="mt-2 rounded-md bg-red-50 p-2 text-xs text-red-600">
+        <div className="mt-2 rounded-md bg-red-50 dark:bg-red-900/30 p-2 text-xs text-red-600 dark:text-red-300">
           {error}
         </div>
       )}
