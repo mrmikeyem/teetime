@@ -3,8 +3,11 @@ import { redirect } from "next/navigation";
 import { auth, signOut } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { PreferencesForm } from "./preferences-form";
+import { CalendarSync } from "./calendar-sync";
 
 export const dynamic = "force-dynamic";
+
+const APP_URL = process.env.AUTH_URL ?? "https://infiniterien.com";
 
 export default async function AccountPage() {
   const session = await auth();
@@ -12,7 +15,7 @@ export default async function AccountPage() {
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { username: true, name: true, email: true },
+    select: { username: true, name: true, email: true, calendarFeedToken: true },
   });
   if (!user) redirect("/login");
 
@@ -64,6 +67,20 @@ export default async function AccountPage() {
             <dd className="text-gray-700">{user.email ?? "—"}</dd>
           </div>
         </dl>
+      </section>
+
+      <section className="rounded-lg bg-white p-4 shadow-sm">
+        <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-gray-500">
+          Sync to your calendar
+        </h2>
+        <p className="mb-3 text-xs text-gray-500">
+          Subscribe in Apple, Google, or Outlook and your tee times appear
+          automatically. Updates sync every ~30 min.
+        </p>
+        <CalendarSync
+          appUrl={APP_URL}
+          initialToken={user.calendarFeedToken}
+        />
       </section>
 
       <section className="rounded-lg bg-white p-4 shadow-sm">
