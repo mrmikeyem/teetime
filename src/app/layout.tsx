@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Providers } from "./providers";
+import { InstallNudge } from "./components/install-nudge";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -19,6 +20,13 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: "Tee Time Tracker",
   description: "Track. Plan. Shank. Repeat.",
+  applicationName: "Tee Time Tracker",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Tee Times",
+  },
   icons: {
     icon: [
       { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
@@ -53,6 +61,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  themeColor: "#15803d",
 };
 
 export default function RootLayout({
@@ -67,6 +76,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col overflow-x-hidden bg-gray-50 text-gray-900">
         <Providers>{children}</Providers>
+        <InstallNudge />
       </body>
     </html>
   );
