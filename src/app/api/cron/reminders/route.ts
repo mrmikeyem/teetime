@@ -7,6 +7,7 @@ import { shouldNotify } from "@/lib/notifications";
 import { mintToken, buildActionUrl } from "@/lib/email-actions";
 import { startOfTodayInAppTz } from "@/lib/time";
 import { getRoundSummary } from "@/lib/weather-summary";
+import { sendPushToUser } from "@/lib/push";
 
 const REMIND_BEFORE_MIN = 60;
 const WINDOW_MIN = 5;
@@ -93,6 +94,17 @@ export async function POST(req: Request) {
         });
 
         await sendMail({ to: m.user.email, subject, text, html });
+
+        // Fire push to any subscribed devices for this user. Failure here
+        // shouldn't kill the email send — fire-and-forget with a logged error.
+        sendPushToUser(m.userId, {
+          title: t.type === "TOURNAMENT"
+            ? `${t.isShotgun ? "Shotgun" : "Tournament"} in 1 hour`
+            : "Tee time in 1 hour",
+          body: `${t.name ? t.name + " · " : ""}${t.course}`,
+          url: `/tee-times/${t.id}`,
+          tag: `reminder-${t.id}`,
+        }).catch((err) => console.error("[push] reminder failed:", err));
 
         await prisma.teeTimeMember.update({
           where: { id: m.id },

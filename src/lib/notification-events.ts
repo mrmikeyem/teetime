@@ -10,6 +10,7 @@ import {
 } from "@/lib/email-templates";
 import { shouldNotify, filterEligibleUsers } from "@/lib/notifications";
 import { mintToken, buildActionUrl } from "@/lib/email-actions";
+import { sendPushToUser } from "@/lib/push";
 
 const APP_URL = process.env.AUTH_URL ?? "https://infiniterien.com";
 
@@ -89,6 +90,13 @@ export async function notifyAddedToTeeTime(opts: {
     });
 
     await sendMail({ to: user.email, subject, text, html });
+
+    sendPushToUser(userId, {
+      title: `${adder.name} added you to a tee time`,
+      body: `${teeTime.course}`,
+      url: `/tee-times/${teeTime.id}`,
+      tag: `added-${teeTime.id}`,
+    }).catch((err) => console.error("[push] addedTo failed:", err));
   } catch (err) {
     console.error("[notifyAddedToTeeTime] failed:", err);
   }
@@ -154,6 +162,12 @@ export async function notifyMemberJoined(opts: {
           unsubscribeUrl: buildActionUrl(unsubscribe.rawToken, "unsubscribe"),
         });
         await sendMail({ to: r.email!, subject, text, html });
+        sendPushToUser(r.id, {
+          title: `${joiner.name} joined your tee time`,
+          body: teeTime.course,
+          url: `/tee-times/${teeTime.id}`,
+          tag: `joined-${teeTime.id}-${joinerUserId}`,
+        }).catch((err) => console.error("[push] memberJoined failed:", err));
       })
     );
   } catch (err) {
@@ -205,6 +219,12 @@ export async function notifyMemberLeft(opts: {
           unsubscribeUrl: buildActionUrl(unsubscribe.rawToken, "unsubscribe"),
         });
         await sendMail({ to: r.email!, subject, text, html });
+        sendPushToUser(r.id, {
+          title: `${leaverName} left your tee time`,
+          body: course,
+          url: `/tee-times/${teeTimeId}`,
+          tag: `left-${teeTimeId}-${leaverName}`,
+        }).catch((err) => console.error("[push] memberLeft failed:", err));
       })
     );
   } catch (err) {
@@ -291,6 +311,14 @@ export async function notifyNewTeeTime(opts: {
           unsubscribeUrl: buildActionUrl(unsubscribe.rawToken, "unsubscribe"),
         });
         await sendMail({ to: r.email!, subject, text, html });
+        sendPushToUser(r.id, {
+          title: `New tee time at ${teeTime.course}`,
+          body: `${teeTime.creator.name} booked it — ${
+            openSpots === 1 ? "1 open spot" : openSpots + " open spots"
+          }`,
+          url: `/tee-times/${teeTimeId}`,
+          tag: `new-${teeTimeId}`,
+        }).catch((err) => console.error("[push] newTeeTime failed:", err));
       })
     );
   } catch (err) {

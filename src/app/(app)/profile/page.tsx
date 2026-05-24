@@ -6,6 +6,7 @@ import { PreferencesForm } from "./preferences-form";
 import { CalendarSync } from "./calendar-sync";
 import { AppearancePicker } from "./appearance-picker";
 import { DefaultsForm } from "./defaults-form";
+import { PushNotifications } from "./push-notifications";
 
 export const dynamic = "force-dynamic";
 
@@ -109,6 +110,13 @@ export default async function AccountPage() {
           appUrl={APP_URL}
           initialToken={user.calendarFeedToken}
         />
+      </section>
+
+      <section className="rounded-lg bg-white p-4 shadow-sm dark:bg-gray-900">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+          Push notifications
+        </h2>
+        <PushNotifications />
       </section>
 
       <section className="rounded-lg bg-white dark:bg-gray-900 p-4 shadow-sm">
