@@ -9,6 +9,7 @@ import {
   GRAND_FORKS,
   getDailyWeatherGrid,
   getWeatherForTeeTime,
+  type WeatherSummary,
 } from "@/lib/weather";
 
 export const dynamic = "force-dynamic";
@@ -32,10 +33,7 @@ export default async function TeeTimesPage() {
     },
   });
 
-  const weatherByTeeId = new Map<
-    string,
-    { tempF: number; icon: string } | null
-  >();
+  const weatherByTeeId = new Map<string, WeatherSummary | null>();
   await Promise.all(
     teeTimes.map(async (t) => {
       if (t.lat == null || t.lon == null) {
@@ -47,10 +45,7 @@ export default async function TeeTimesPage() {
           { lat: t.lat, lon: t.lon },
           t.teeOffAt
         );
-        weatherByTeeId.set(
-          t.id,
-          w ? { tempF: w.tempF, icon: w.icon } : null
-        );
+        weatherByTeeId.set(t.id, w);
       } catch {
         weatherByTeeId.set(t.id, null);
       }

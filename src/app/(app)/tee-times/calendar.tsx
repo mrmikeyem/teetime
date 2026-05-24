@@ -208,6 +208,17 @@ function CalendarCell({
   const extra = sortedTees.length - 1;
   const day = dailyWeather.get(iso);
   const hasTee = tees.length > 0;
+  // When a tee time exists, show its actual tee-off-hour weather. Otherwise
+  // fall back to the daily 5pm/10am anchor.
+  const tileWeather = firstTee?.weather
+    ? {
+        tempF: firstTee.weather.tempF,
+        icon: firstTee.weather.icon,
+        condition: firstTee.weather.condition,
+      }
+    : day
+    ? { tempF: day.tempF, icon: day.icon, condition: day.condition }
+    : null;
 
   // Week view gives more room: bigger cells, both icon + temp always visible,
   // tee-time course readable. Month view is denser but now also shows temp.
@@ -241,14 +252,14 @@ function CalendarCell({
     >
       <div className="flex items-center justify-between gap-0.5">
         <span className="text-[11px] font-semibold">{cell.getDate()}</span>
-        {day && !isPast && (
+        {tileWeather && !isPast && (
           <span
             className="whitespace-nowrap text-[10px] text-gray-500 dark:text-gray-400"
-            title={`${day.condition} · ${day.tempF}°`}
-            aria-label={`${day.condition}, ${day.tempF}°F`}
+            title={`${tileWeather.condition} · ${tileWeather.tempF}°`}
+            aria-label={`${tileWeather.condition}, ${tileWeather.tempF}°F`}
           >
-            <span aria-hidden>{day.icon}</span>
-            <span> {day.tempF}°</span>
+            <span aria-hidden>{tileWeather.icon}</span>
+            <span> {tileWeather.tempF}°</span>
           </span>
         )}
       </div>

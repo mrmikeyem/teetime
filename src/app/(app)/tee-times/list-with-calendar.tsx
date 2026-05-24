@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { Countdown } from "./countdown";
 import { TeeTimeCalendar } from "./calendar";
+import { WeatherChip } from "./weather-chip";
+import type { WeatherSummary } from "@/lib/weather";
 
 export type TeeTimeListItem = {
   id: string;
@@ -12,7 +14,7 @@ export type TeeTimeListItem = {
   partySize: number;
   creatorName: string;
   members: { name: string; confirmed: boolean }[];
-  weather: { tempF: number; icon: string } | null;
+  weather: WeatherSummary | null;
 };
 
 export type DailyWeatherEntry = {
@@ -75,7 +77,7 @@ export function ListWithCalendar({
                       className="text-xs text-emerald-700 dark:text-emerald-400"
                     />
                   </div>
-                  <div className="flex items-center gap-2 text-xs">
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
                     <span
                       className={`rounded-full px-2 py-0.5 font-semibold ${
                         tooManyConfirmed
@@ -92,6 +94,7 @@ export function ListWithCalendar({
                         ⚠️ {t.members.length}/{t.partySize}
                       </span>
                     )}
+                    {t.weather && <WeatherChip weather={t.weather} />}
                     <span className="truncate text-gray-500 dark:text-gray-400">
                       {t.members.length === 0
                         ? "no one yet"
