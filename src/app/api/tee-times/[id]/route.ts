@@ -99,6 +99,8 @@ export async function PATCH(
       teeOffAt: when,
       partySize: size,
       type: tournament.type,
+      name: tournament.name,
+      teamSize: tournament.teamSize,
       externalUrl: tournament.externalUrl,
       signupDeadline: tournament.signupDeadline,
       rangeOpensTime: tournament.rangeOpensTime,

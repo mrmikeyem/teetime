@@ -82,6 +82,8 @@ export async function POST(req: Request) {
       teeOffAt: when,
       partySize: size,
       type: tournament.type,
+      name: tournament.name,
+      teamSize: tournament.teamSize,
       externalUrl: tournament.externalUrl,
       signupDeadline: tournament.signupDeadline,
       rangeOpensTime: tournament.rangeOpensTime,

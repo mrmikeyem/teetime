@@ -80,6 +80,7 @@ export async function POST(req: Request) {
         const { subject, text, html } = reminderEmail({
           name: m.user.name,
           course: t.course,
+          tournamentName: t.name,
           teeOffAt: t.teeOffAt,
           roster,
           confirmUrl: buildActionUrl(confirm.rawToken, "confirm"),

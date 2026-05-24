@@ -307,6 +307,7 @@ export type RosterEntry = {
 export function reminderEmail(opts: {
   name: string;
   course: string;
+  tournamentName?: string | null;
   teeOffAt: Date;
   roster: RosterEntry[];
   confirmUrl: string;
@@ -317,12 +318,14 @@ export function reminderEmail(opts: {
   isTournament?: boolean;
   isShotgun?: boolean;
 }) {
-  const { name, course, teeOffAt, roster, confirmUrl, leaveUrl, detailUrl, unsubscribeUrl, whatToExpect, isTournament, isShotgun } = opts;
+  const { name, course, tournamentName, teeOffAt, roster, confirmUrl, leaveUrl, detailUrl, unsubscribeUrl, whatToExpect, isTournament, isShotgun } = opts;
   const when = formatTeeOff(teeOffAt);
   const noun = isTournament ? "Tournament" : "Tee time";
   const startLabel = isShotgun ? "Shotgun start" : isTournament ? "Start" : "Tee off";
+  // Tournament subject uses name (if set) + venue. Falls back to venue alone.
+  const tournamentTitle = tournamentName ? `${tournamentName} at ${course}` : course;
   const subject = isTournament
-    ? `${isShotgun ? "Shotgun" : "Tournament"} in 1 hour — ${course}, ${when}`
+    ? `${isShotgun ? "Shotgun" : "Tournament"} in 1 hour — ${tournamentTitle}, ${when}`
     : `Tee time in 1 hour — ${course}, ${when}`;
 
   const rosterText = roster
@@ -336,7 +339,8 @@ export function reminderEmail(opts: {
   const text =
     `Hi ${name},\n\n` +
     `${intro}\n\n` +
-    `${isTournament ? "Tournament" : "Course"}: ${course}\n` +
+    (isTournament && tournamentName ? `Tournament: ${tournamentName}\n` : "") +
+    `${isTournament ? "Venue" : "Course"}: ${course}\n` +
     `${startLabel}: ${when}\n\n` +
     (whatToExpect ? `What to expect: ${whatToExpect}\n\n` : "") +
     `Group:\n${rosterText}\n\n` +
@@ -366,18 +370,24 @@ export function reminderEmail(opts: {
         </table>`
     : "";
 
-  const venueLabel = isTournament ? "Tournament" : "Course";
+  const venueLabel = isTournament ? "Venue" : "Course";
   const introHtml = isTournament
     ? `You're playing in a tournament in about an hour.${isShotgun ? " Shotgun start." : ""}`
     : "You're scheduled to tee off in about an hour.";
   const detailLinkText = isTournament ? "View tournament details" : "View tee time details";
+  const tournamentNameRow =
+    isTournament && tournamentName
+      ? `
+            <p style="margin:0 0 4px 0;font-size:13px;color:#6b7280;text-transform:uppercase;letter-spacing:0.04em;">Tournament</p>
+            <p style="margin:0 0 10px 0;font-size:16px;font-weight:600;">${escapeHtml(tournamentName)}</p>`
+      : "";
 
   const html = shell(
     `
         <p style="margin:0 0 12px 0;">Hi ${escapeHtml(name)},</p>
         <p style="margin:0 0 16px 0;">${introHtml}</p>
         <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 16px 0;width:100%;background-color:#f9fafb;border-radius:8px;">
-          <tr><td style="padding:14px 16px;">
+          <tr><td style="padding:14px 16px;">${tournamentNameRow}
             <p style="margin:0 0 4px 0;font-size:13px;color:#6b7280;text-transform:uppercase;letter-spacing:0.04em;">${venueLabel}</p>
             <p style="margin:0 0 10px 0;font-size:16px;font-weight:600;">${escapeHtml(course)}</p>
             <p style="margin:0 0 4px 0;font-size:13px;color:#6b7280;text-transform:uppercase;letter-spacing:0.04em;">${startLabel}</p>

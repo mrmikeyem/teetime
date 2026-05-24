@@ -119,8 +119,10 @@ model Guest {
 model TeeTime {
   id             String            @id @default(uuid()) @db.Uuid
   course         String
+  name           String?
   teeOffAt       DateTime          @map("tee_off_at")
   partySize      Int?              @map("party_size")
+  teamSize       Int?              @map("team_size")
   type           TeeTimeType       @default(TEE_TIME)
   externalUrl    String?           @map("external_url")
   signupDeadline DateTime?         @map("signup_deadline")

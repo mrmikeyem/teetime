@@ -79,7 +79,16 @@ export default async function TeeTimeDetailPage({
       </Link>
 
       <header className="space-y-2">
-        <h1 className="text-2xl font-bold">{teeTime.course}</h1>
+        <h1 className="text-2xl font-bold">
+          {teeTime.type === "TOURNAMENT" && teeTime.name
+            ? teeTime.name
+            : teeTime.course}
+        </h1>
+        {teeTime.type === "TOURNAMENT" && teeTime.name && (
+          <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            at {teeTime.course}
+          </p>
+        )}
         <p className="text-sm text-gray-600 dark:text-gray-300">
           {formatDateTime(teeTime.teeOffAt)} — booked by {teeTime.creator.name}
         </p>
@@ -89,6 +98,11 @@ export default async function TeeTimeDetailPage({
               <span className="rounded-full bg-amber-100 dark:bg-amber-900/40 px-2.5 py-1 text-xs font-semibold text-amber-800 dark:text-amber-300">
                 🏆 Tournament
               </span>
+              {teeTime.teamSize && (
+                <span className="rounded-full bg-amber-50 dark:bg-amber-900/30 px-2.5 py-1 text-xs font-semibold text-amber-800 dark:text-amber-300">
+                  {teeTime.teamSize}-man
+                </span>
+              )}
               <span className="rounded-full bg-gray-100 dark:bg-gray-800 px-2.5 py-1 text-xs font-semibold text-gray-700 dark:text-gray-200">
                 {teeTime.members.length} playing
               </span>
@@ -219,6 +233,7 @@ function TournamentInfo({
   teeTime,
 }: {
   teeTime: {
+    teamSize: number | null;
     rangeOpensTime: string | null;
     isShotgun: boolean;
     format: string | null;
@@ -229,6 +244,9 @@ function TournamentInfo({
 }) {
   const rows: { label: string; value: React.ReactNode }[] = [];
 
+  if (teeTime.teamSize) {
+    rows.push({ label: "Team size", value: `${teeTime.teamSize}-man` });
+  }
   if (teeTime.isShotgun) {
     rows.push({ label: "Start", value: "Shotgun" });
   }

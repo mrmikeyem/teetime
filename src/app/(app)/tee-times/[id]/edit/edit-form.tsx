@@ -19,18 +19,22 @@ const COURSE_SHORTCUTS = [
 export function EditForm({
   teeTimeId,
   initialCourse,
+  initialName,
   initialDate,
   initialTime,
   initialPartySize,
+  initialTeamSize,
   initialNotes,
   initialType,
   initialTournament,
 }: {
   teeTimeId: string;
   initialCourse: string;
+  initialName: string;
   initialDate: string;
   initialTime: string;
   initialPartySize: number;
+  initialTeamSize: number;
   initialNotes: string;
   initialType: "TEE_TIME" | "TOURNAMENT";
   initialTournament: TournamentFieldsState;
@@ -39,9 +43,11 @@ export function EditForm({
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [course, setCourse] = useState(initialCourse);
+  const [name, setName] = useState(initialName);
   const [date, setDate] = useState(initialDate);
   const [time, setTime] = useState(initialTime);
   const [partySize, setPartySize] = useState(initialPartySize);
+  const [teamSize, setTeamSize] = useState(initialTeamSize);
   const [notes, setNotes] = useState(initialNotes);
   const [type, setType] = useState<"TEE_TIME" | "TOURNAMENT">(initialType);
   const [tournament, setTournament] =
@@ -61,6 +67,8 @@ export function EditForm({
         teeOffAt,
         partySize: type === "TOURNAMENT" ? null : partySize,
         type,
+        name: type === "TOURNAMENT" ? name : null,
+        teamSize: type === "TOURNAMENT" ? teamSize : null,
         notes: notes.trim() || null,
         externalUrl: tournament.externalUrl,
         signupDeadline: tournament.signupDeadline,
@@ -127,9 +135,26 @@ export function EditForm({
           </div>
         </div>
 
+        {type === "TOURNAMENT" && (
+          <div>
+            <label className="block text-sm font-medium" htmlFor="tournamentName">
+              Tournament name
+            </label>
+            <input
+              id="tournamentName"
+              type="text"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Spring Open"
+              className="mt-1 block w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2.5 text-sm focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
+            />
+          </div>
+        )}
+
         <div>
           <label className="block text-sm font-medium" htmlFor="course">
-            {type === "TOURNAMENT" ? "Tournament / venue" : "Course"}
+            {type === "TOURNAMENT" ? "Venue" : "Course"}
           </label>
           <input
             id="course"
@@ -185,7 +210,28 @@ export function EditForm({
         </div>
 
         {type === "TOURNAMENT" && (
-          <TournamentFieldsBlock value={tournament} onChange={setTournament} />
+          <>
+            <div>
+              <label className="block text-sm font-medium">Team size</label>
+              <div className="mt-1 flex gap-2">
+                {[2, 3, 4, 5].map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setTeamSize(n)}
+                    className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold ${
+                      teamSize === n
+                        ? "border-amber-600 bg-amber-600 text-white"
+                        : "border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:border-amber-600"
+                    }`}
+                  >
+                    {n}-man
+                  </button>
+                ))}
+              </div>
+            </div>
+            <TournamentFieldsBlock value={tournament} onChange={setTournament} />
+          </>
         )}
 
         {type === "TEE_TIME" && (

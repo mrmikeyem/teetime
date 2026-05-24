@@ -66,8 +66,10 @@ export default async function TeeTimesPage() {
   const listItems: TeeTimeListItem[] = teeTimes.map((t) => ({
     id: t.id,
     course: t.course,
+    name: t.name,
     teeOffAt: t.teeOffAt.toISOString(),
     partySize: t.partySize,
+    teamSize: t.teamSize,
     type: t.type,
     creatorName: t.creator.name,
     members: t.members.map((m) => ({

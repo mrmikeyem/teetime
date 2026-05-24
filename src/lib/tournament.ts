@@ -8,6 +8,8 @@ const VALID_FORMATS = new Set<string>(Object.values(TournamentFormat));
 
 export type ParsedTournamentFields = {
   type: TeeTimeType;
+  name: string | null;
+  teamSize: number | null;
   externalUrl: string | null;
   signupDeadline: Date | null;
   rangeOpensTime: string | null;
@@ -32,6 +34,8 @@ export function parseTournamentFields(
   if (type !== TeeTimeType.TOURNAMENT) {
     return {
       type,
+      name: null,
+      teamSize: null,
       externalUrl: null,
       signupDeadline: null,
       rangeOpensTime: null,
@@ -40,6 +44,29 @@ export function parseTournamentFields(
       entryFee: null,
     };
   }
+
+  // Tournament name — required
+  let name: string | null = null;
+  if (body.name == null || typeof body.name !== "string" || !body.name.trim()) {
+    return { error: "Tournament name is required" };
+  }
+  name = body.name.trim();
+
+  // Team size — required, 2-5
+  let teamSize: number | null = null;
+  if (body.teamSize == null || body.teamSize === "") {
+    return { error: "Team size is required" };
+  }
+  const n =
+    typeof body.teamSize === "number"
+      ? body.teamSize
+      : typeof body.teamSize === "string"
+      ? Number(body.teamSize)
+      : NaN;
+  if (!Number.isInteger(n) || n < 2 || n > 5) {
+    return { error: "Team size must be 2, 3, 4, or 5" };
+  }
+  teamSize = n;
 
   // External URL
   let externalUrl: string | null = null;
@@ -110,6 +137,8 @@ export function parseTournamentFields(
 
   return {
     type,
+    name,
+    teamSize,
     externalUrl,
     signupDeadline,
     rangeOpensTime,

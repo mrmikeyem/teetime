@@ -10,8 +10,10 @@ import type { WeatherSummary } from "@/lib/weather";
 export type TeeTimeListItem = {
   id: string;
   course: string;
+  name: string | null;
   teeOffAt: string;
   partySize: number | null;
+  teamSize: number | null;
   type: "TEE_TIME" | "TOURNAMENT";
   creatorName: string;
   members: { name: string; confirmed: boolean }[];
@@ -71,12 +73,17 @@ export function ListWithCalendar({
                   <div className="flex items-baseline justify-between gap-2">
                     <h2 className="font-semibold">
                       {isTournament && <span aria-hidden>🏆 </span>}
-                      {t.course}
+                      {isTournament && t.name ? t.name : t.course}
                     </h2>
                     <span className="text-xs text-gray-500 dark:text-gray-400">
                       {formatDate(teeOff)}
                     </span>
                   </div>
+                  {isTournament && t.name && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      at {t.course}
+                    </p>
+                  )}
                   <div className="flex items-center justify-between gap-2 text-sm text-gray-600 dark:text-gray-300">
                     <span>
                       {formatTime(teeOff)} — {t.creatorName}
@@ -89,7 +96,8 @@ export function ListWithCalendar({
                   <div className="flex flex-wrap items-center gap-2 text-xs">
                     {isTournament ? (
                       <span className="rounded-full bg-amber-100 px-2 py-0.5 font-semibold text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
-                        Tournament · {t.members.length} playing
+                        Tournament{t.teamSize ? ` · ${t.teamSize}-man` : ""} ·{" "}
+                        {t.members.length} playing
                       </span>
                     ) : (
                       <>

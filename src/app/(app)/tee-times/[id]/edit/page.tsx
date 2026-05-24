@@ -19,8 +19,10 @@ export default async function EditTeeTimePage({
     select: {
       id: true,
       course: true,
+      name: true,
       teeOffAt: true,
       partySize: true,
+      teamSize: true,
       type: true,
       externalUrl: true,
       signupDeadline: true,
@@ -71,9 +73,11 @@ export default async function EditTeeTimePage({
     <EditForm
       teeTimeId={teeTime.id}
       initialCourse={teeTime.course}
+      initialName={teeTime.name ?? ""}
       initialDate={initialDate}
       initialTime={initialTime}
       initialPartySize={teeTime.partySize ?? 4}
+      initialTeamSize={teeTime.teamSize ?? 4}
       initialNotes={teeTime.notes ?? ""}
       initialType={teeTime.type}
       initialTournament={{

@@ -46,6 +46,8 @@ function NewTeeTimeForm({
   const [loading, setLoading] = useState(false);
   const [staged, setStaged] = useState<PickerItem[]>([]);
   const [partySize, setPartySize] = useState(4);
+  const [teamSize, setTeamSize] = useState(4);
+  const [name, setName] = useState("");
   const [course, setCourse] = useState("");
   const [date, setDate] = useState(initialDate);
   const [time, setTime] = useState(() =>
@@ -95,6 +97,8 @@ function NewTeeTimeForm({
         teeOffAt,
         partySize: type === "TOURNAMENT" ? null : partySize,
         type,
+        name: type === "TOURNAMENT" ? name : null,
+        teamSize: type === "TOURNAMENT" ? teamSize : null,
         notes,
         externalUrl: tournament.externalUrl,
         signupDeadline: tournament.signupDeadline,
@@ -163,9 +167,26 @@ function NewTeeTimeForm({
           </div>
         </div>
 
+        {type === "TOURNAMENT" && (
+          <div>
+            <label className="block text-sm font-medium" htmlFor="tournamentName">
+              Tournament name
+            </label>
+            <input
+              id="tournamentName"
+              type="text"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Spring Open"
+              className="mt-1 block w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2.5 text-sm focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
+            />
+          </div>
+        )}
+
         <div>
           <label className="block text-sm font-medium" htmlFor="course">
-            {type === "TOURNAMENT" ? "Tournament / venue" : "Course"}
+            {type === "TOURNAMENT" ? "Venue" : "Course"}
           </label>
           <input
             id="course"
@@ -240,7 +261,28 @@ function NewTeeTimeForm({
         <WeatherPreview course={course} date={date} time={time} />
 
         {type === "TOURNAMENT" && (
-          <TournamentFieldsBlock value={tournament} onChange={setTournament} />
+          <>
+            <div>
+              <label className="block text-sm font-medium">Team size</label>
+              <div className="mt-1 flex gap-2">
+                {[2, 3, 4, 5].map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setTeamSize(n)}
+                    className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold ${
+                      teamSize === n
+                        ? "border-amber-600 bg-amber-600 text-white"
+                        : "border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:border-amber-600"
+                    }`}
+                  >
+                    {n}-man
+                  </button>
+                ))}
+              </div>
+            </div>
+            <TournamentFieldsBlock value={tournament} onChange={setTournament} />
+          </>
         )}
 
         {type === "TEE_TIME" && (
