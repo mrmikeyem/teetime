@@ -12,6 +12,7 @@ import { WeatherChip } from "../weather-chip";
 import { getWeatherForTeeTime } from "@/lib/weather";
 import { AutoRefresh } from "../auto-refresh";
 import { WhatToExpect, WhatToExpectSpinner } from "./what-to-expect";
+import { MyStatusBar } from "./my-status-bar";
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +52,9 @@ export default async function TeeTimeDetailPage({
 
   const isCurrentUserMember = excludeUserIds.includes(session.user.id);
   const isPastTeeTime = teeTime.teeOffAt.getTime() < Date.now();
+  const currentUserMembership = teeTime.members.find(
+    (m) => m.userId === session.user.id
+  );
 
   const confirmedCount = teeTime.members.filter((m) => m.confirmed).length;
   // Tournaments have null partySize (unlimited) — no over-capacity concept.
@@ -150,6 +154,15 @@ export default async function TeeTimeDetailPage({
           </p>
         )}
       </header>
+
+      {currentUserMembership && !isPastTeeTime && (
+        <MyStatusBar
+          teeTimeId={teeTime.id}
+          userId={session.user.id}
+          confirmed={currentUserMembership.confirmed}
+          isTournament={teeTime.type === "TOURNAMENT"}
+        />
+      )}
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
