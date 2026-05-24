@@ -4,28 +4,80 @@ import type { Coords } from "./weather";
 
 export type HourlyPoint = {
   hour: number;
+  utcIso: string;
   tempF: number;
   feelsLikeF: number;
   precipChance: number;
   windMph: number;
+  windDirDeg: number;
+  gustsMph: number;
+  uvIndex: number;
   conditionCode: number;
 };
 
 export type RoundForecast = {
   teeOff: HourlyPoint;
   hours: HourlyPoint[];
+  sunsetUtcIso: string | null;
+  past24hPrecipIn: number;
 };
 
-const SYSTEM_PROMPT = `You write one-sentence weather briefings for a casual men's golf group in North Dakota.
+const SYSTEM_PROMPT = `You write a "what to expect" paragraph for a casual men's golf group in North Dakota about their upcoming 4-hour round.
 
-Input: hourly forecast covering the 4 hours of a round (tee-off + next 3 hours), with temperature, feels-like, wind, and precipitation chance.
+Input: hourly forecast for tee-off and the next 3 hours, plus sunset time, past-24h rainfall, and severe-weather alerts.
 
-Output: ONE sentence (max ~25 words) telling the golfer what to expect over the round. Mention the practical thing — what to wear, whether wind/rain will be a factor, whether it'll warm up or cool off. Be specific, not generic. No greetings, no "have fun", no emojis. Plain text only.
+Output: ONE short paragraph (3-5 sentences, ~80 words max) covering the practical things — weather across the round, what to wear or bring, ground conditions, wind impact on play, daylight runway, and any heads-up like bugs or severe weather. Connect the factors when it's natural: "dry + light wind = ball will roll" beats stating them separately.
 
-Examples of the tone:
-- "Mid-60s and breezy at tee-off, climbing to 72 by the back nine — light layer to start, you'll shed it."
-- "Holding around 78 with a steady 15mph breeze the whole round — sunglasses, no jacket needed."
-- "40% chance of showers picking up after hour two — pack a rain jacket."`;
+Rules:
+- Be specific. Use numbers and times. "Upper 70s easing to 74 by 8pm" beats "warm."
+- Don't invent course-specific knowledge. You don't know the layout. Talk about general effects of wind direction and ground conditions, not specific holes.
+- Don't recommend a layer or jacket when temperatures stay above 70°F, unless wind/humidity make it feel meaningfully colder.
+- Only mention dusk or daylight if the round's last hour falls within 30 minutes of sunset. Otherwise skip it.
+- If conditions are unremarkable across the board (mild, calm, dry, no daylight concerns), return the single word: null
+- Skip filler. "Dress comfortably" or "enjoy your round" is not acceptable.
+- No greetings, no sign-offs, no emojis. Plain prose, casual tone.
+
+Examples of the voice:
+
+Example A (windy summer round):
+Upper 70s and breezy at tee-off, easing to low 70s by 8pm with gusts up to 22mph the first two hours. The steady SW wind will drift tee shots right early — less of a factor as it quiets after hour two. Bring a hat that stays on. Sunset's 9:12pm, so the last group finishes near dusk; a glow ball doesn't hurt if pace gets soft.
+
+Example B (post-rain cool round):
+Cool and damp at 58° to start, climbing to a comfortable 65° by hour three under partly cloudy skies. Light layer over a polo to start, you'll shed it by the back nine. Yesterday's half-inch of rain means soft fairways — the ball won't roll out, so club up on approaches. Calm wind throughout.
+
+Example C (unremarkable):
+null`;
+
+function compass(deg: number): string {
+  const dirs = [
+    "N",
+    "NNE",
+    "NE",
+    "ENE",
+    "E",
+    "ESE",
+    "SE",
+    "SSE",
+    "S",
+    "SSW",
+    "SW",
+    "WSW",
+    "W",
+    "WNW",
+    "NW",
+    "NNW",
+  ];
+  return dirs[Math.round(deg / 22.5) % 16];
+}
+
+function formatCtTime(utcIso: string): string {
+  const d = new Date(`${utcIso}Z`);
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Chicago",
+    hour: "numeric",
+    hour12: true,
+  }).format(d);
+}
 
 export async function getRoundForecast(
   coords: Coords,
@@ -44,13 +96,20 @@ export async function getRoundForecast(
       "temperature_2m",
       "apparent_temperature",
       "precipitation_probability",
+      "precipitation",
       "wind_speed_10m",
+      "wind_direction_10m",
+      "wind_gusts_10m",
+      "uv_index",
       "weather_code",
     ].join(",")
   );
+  url.searchParams.set("daily", "sunset");
   url.searchParams.set("temperature_unit", "fahrenheit");
   url.searchParams.set("wind_speed_unit", "mph");
+  url.searchParams.set("precipitation_unit", "inch");
   url.searchParams.set("timezone", "UTC");
+  url.searchParams.set("past_days", "1");
   url.searchParams.set("forecast_days", "16");
 
   const res = await fetch(url, { next: { revalidate: 60 * 30 } });
@@ -62,8 +121,16 @@ export async function getRoundForecast(
       temperature_2m: number[];
       apparent_temperature: number[];
       precipitation_probability: number[];
+      precipitation: number[];
       wind_speed_10m: number[];
+      wind_direction_10m: number[];
+      wind_gusts_10m: number[];
+      uv_index: number[];
       weather_code: number[];
+    };
+    daily?: {
+      time: string[];
+      sunset: string[];
     };
   };
   const hourly = data.hourly;
@@ -92,16 +159,80 @@ export async function getRoundForecast(
     if (i >= hourly.time.length) break;
     points.push({
       hour: offset,
+      utcIso: hourly.time[i],
       tempF: Math.round(hourly.temperature_2m[i]),
       feelsLikeF: Math.round(hourly.apparent_temperature[i]),
       precipChance: hourly.precipitation_probability?.[i] ?? 0,
       windMph: Math.round(hourly.wind_speed_10m[i]),
+      windDirDeg: Math.round(hourly.wind_direction_10m[i]),
+      gustsMph: Math.round(hourly.wind_gusts_10m[i]),
+      uvIndex: Math.round(hourly.uv_index?.[i] ?? 0),
       conditionCode: hourly.weather_code[i],
     });
   }
   if (points.length === 0) return null;
 
-  return { teeOff: points[0], hours: points };
+  // Past 24h rainfall (sum of precip across the 24 hours before tee-off).
+  let past24hPrecipIn = 0;
+  const teeOffMs = teeOffAt.getTime();
+  for (let i = 0; i < hourly.time.length; i++) {
+    const t = new Date(`${hourly.time[i]}Z`).getTime();
+    if (t >= teeOffMs - 24 * 60 * 60 * 1000 && t < teeOffMs) {
+      past24hPrecipIn += hourly.precipitation?.[i] ?? 0;
+    }
+  }
+  past24hPrecipIn = Math.round(past24hPrecipIn * 100) / 100;
+
+  // Sunset on tee-off day (UTC).
+  let sunsetUtcIso: string | null = null;
+  const teeOffDayUtc = target.toISOString().slice(0, 10);
+  if (data.daily) {
+    for (let i = 0; i < data.daily.time.length; i++) {
+      if (data.daily.time[i] === teeOffDayUtc) {
+        sunsetUtcIso = data.daily.sunset[i] ?? null;
+        break;
+      }
+    }
+  }
+
+  return { teeOff: points[0], hours: points, sunsetUtcIso, past24hPrecipIn };
+}
+
+function formatUserMessage(forecast: RoundForecast): string {
+  const teeOffCt = formatCtTime(forecast.teeOff.utcIso);
+  const sunsetCt = forecast.sunsetUtcIso
+    ? new Date(forecast.sunsetUtcIso).toLocaleString("en-US", {
+        timeZone: "America/Chicago",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      })
+    : null;
+
+  const lines: string[] = [];
+  lines.push(`Tee-off: ${teeOffCt} CDT`);
+  if (sunsetCt) {
+    lines.push(`Sunset:  ${sunsetCt} CDT`);
+  }
+  lines.push("");
+
+  for (const h of forecast.hours) {
+    const ct = formatCtTime(h.utcIso);
+    const dir = compass(h.windDirDeg);
+    lines.push(
+      `Hour ${h.hour} (${ct}): ${h.tempF}°F (feels ${h.feelsLikeF}°F), wind ${h.windMph}mph ${dir}, gusts ${h.gustsMph}mph, ${h.precipChance}% precip, UV ${h.uvIndex}`
+    );
+  }
+  lines.push("");
+
+  const precipDesc =
+    forecast.past24hPrecipIn === 0
+      ? "0.0 in (dry)"
+      : `${forecast.past24hPrecipIn.toFixed(2)} in`;
+  lines.push(`Past 24h precipitation: ${precipDesc}`);
+  lines.push("Severe alerts: none");
+
+  return lines.join("\n");
 }
 
 export async function summarizeRound(
@@ -109,18 +240,13 @@ export async function summarizeRound(
 ): Promise<string | null> {
   if (!process.env.ANTHROPIC_API_KEY) return null;
 
-  const userText = forecast.hours
-    .map(
-      (h) =>
-        `Hour ${h.hour}: ${h.tempF}°F (feels ${h.feelsLikeF}°F), wind ${h.windMph} mph, ${h.precipChance}% precip`
-    )
-    .join("\n");
+  const userText = formatUserMessage(forecast);
 
   try {
     const client = new Anthropic();
     const response = await client.messages.create({
       model: "claude-haiku-4-5",
-      max_tokens: 200,
+      max_tokens: 400,
       system: [
         {
           type: "text",
@@ -135,7 +261,10 @@ export async function summarizeRound(
       (b): b is Anthropic.TextBlock => b.type === "text"
     );
     const out = textBlock?.text?.trim();
-    return out && out.length > 0 ? out : null;
+    if (!out) return null;
+    // Model returns the literal word "null" when conditions are unremarkable.
+    if (out.toLowerCase() === "null") return null;
+    return out;
   } catch {
     return null;
   }

@@ -138,10 +138,12 @@ export default async function TeeTimeDetailPage({
           {weather && <WeatherChip weather={weather} />}
         </div>
         {roundSummary?.summary && (
-          <p className="mt-2 rounded-lg bg-sky-50 dark:bg-sky-900/20 p-3 text-sm text-sky-900 dark:text-sky-200">
-            <span className="font-semibold">What to expect:</span>{" "}
-            {roundSummary.summary}
-          </p>
+          <div className="mt-2 rounded-lg bg-sky-50 dark:bg-sky-900/20 p-3 text-sm text-sky-900 dark:text-sky-200">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-sky-700 dark:text-sky-300">
+              What to expect
+            </p>
+            <p className="leading-relaxed">{roundSummary.summary}</p>
+          </div>
         )}
         {teeTime.type === "TOURNAMENT" && (
           <TournamentInfo teeTime={teeTime} />
