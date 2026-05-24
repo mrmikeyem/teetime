@@ -33,8 +33,8 @@ Rules:
 - Don't invent course-specific knowledge. You don't know the layout. Talk about general effects of wind direction and ground conditions, not specific holes.
 - Don't recommend a layer or jacket when temperatures stay above 70°F, unless wind/humidity make it feel meaningfully colder.
 - Only mention dusk or daylight if the round's last hour falls within 30 minutes of sunset. Otherwise skip it.
-- If conditions are unremarkable across the board (mild, calm, dry, no daylight concerns), return the single word: null
-- Skip filler. "Dress comfortably" or "enjoy your round" is not acceptable.
+- Always produce a paragraph, even when conditions are mild and uneventful. A bland round still benefits from a one-line "comfortable mid-70s the whole way" confirmation.
+- Skip filler phrases like "dress comfortably" or "enjoy your round." Be useful, not generic.
 - No greetings, no sign-offs, no emojis. Plain prose, casual tone.
 
 Examples of the voice:
@@ -45,8 +45,8 @@ Upper 70s and breezy at tee-off, easing to low 70s by 8pm with gusts up to 22mph
 Example B (post-rain cool round):
 Cool and damp at 58° to start, climbing to a comfortable 65° by hour three under partly cloudy skies. Light layer over a polo to start, you'll shed it by the back nine. Yesterday's half-inch of rain means soft fairways — the ball won't roll out, so club up on approaches. Calm wind throughout.
 
-Example C (unremarkable):
-null`;
+Example C (mild summer round, nothing remarkable):
+Steady mid-to-upper 70s the whole round with a light 6-8mph breeze — comfortable polo-and-shorts weather. Dry ground means the ball will roll out a bit on tee shots. No rain in the picture and plenty of daylight to wrap up.`;
 
 function compass(deg: number): string {
   const dirs = [
