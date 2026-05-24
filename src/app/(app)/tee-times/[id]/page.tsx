@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
+import { Suspense } from "react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { AddMember } from "./add-member";
@@ -9,8 +10,8 @@ import { DeleteButton } from "./delete-button";
 import { JoinButton } from "./join-button";
 import { WeatherChip } from "../weather-chip";
 import { getWeatherForTeeTime } from "@/lib/weather";
-import { getRoundSummary } from "@/lib/weather-summary";
 import { AutoRefresh } from "../auto-refresh";
+import { WhatToExpect, WhatToExpectSpinner } from "./what-to-expect";
 
 export const dynamic = "force-dynamic";
 
@@ -63,14 +64,12 @@ export default async function TeeTimeDetailPage({
       ? { lat: teeTime.lat, lon: teeTime.lon }
       : null;
 
-  const [weather, roundSummary] = await Promise.all([
-    coords
-      ? getWeatherForTeeTime(coords, teeTime.teeOffAt).catch(() => null)
-      : Promise.resolve(null),
-    coords
-      ? getRoundSummary(coords, teeTime.teeOffAt).catch(() => null)
-      : Promise.resolve(null),
-  ]);
+  // Chip blocks the page render (fast Open-Meteo call). The narrative
+  // summary streams in via Suspense so the rest of the page is interactive
+  // while Anthropic is generating.
+  const weather = coords
+    ? await getWeatherForTeeTime(coords, teeTime.teeOffAt).catch(() => null)
+    : null;
 
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-8 space-y-6">
@@ -137,13 +136,10 @@ export default async function TeeTimeDetailPage({
           />
           {weather && <WeatherChip weather={weather} />}
         </div>
-        {roundSummary?.summary && (
-          <div className="mt-2 rounded-lg bg-sky-50 dark:bg-sky-900/20 p-3 text-sm text-sky-900 dark:text-sky-200">
-            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-sky-700 dark:text-sky-300">
-              What to expect
-            </p>
-            <p className="leading-relaxed">{roundSummary.summary}</p>
-          </div>
+        {coords && (
+          <Suspense fallback={<WhatToExpectSpinner />}>
+            <WhatToExpect coords={coords} teeOffAt={teeTime.teeOffAt} />
+          </Suspense>
         )}
         {teeTime.type === "TOURNAMENT" && (
           <TournamentInfo teeTime={teeTime} />
