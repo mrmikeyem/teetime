@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { geocodeCourse } from "@/lib/weather";
 import { notifyAddedToTeeTime, notifyNewTeeTime } from "@/lib/notification-events";
+import { parseTournamentFields } from "@/lib/tournament";
+import { TeeTimeType } from "@prisma/client";
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -10,8 +12,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const body = await req.json();
   const { course, teeOffAt, partySize, notes, memberUserIds, memberGuestIds } =
-    await req.json();
+    body;
 
   if (!course?.trim() || !teeOffAt) {
     return NextResponse.json(
@@ -25,12 +28,32 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid tee-off time" }, { status: 400 });
   }
 
-  const size = Number.isInteger(partySize) ? partySize : 4;
-  if (size < 1 || size > 5) {
-    return NextResponse.json(
-      { error: "Party size must be between 1 and 5" },
-      { status: 400 }
-    );
+  const tournament = parseTournamentFields(body);
+  if ("error" in tournament) {
+    return NextResponse.json({ error: tournament.error }, { status: 400 });
+  }
+
+  // partySize: required 1-5 for tee times, optional for tournaments
+  let size: number | null;
+  if (tournament.type === TeeTimeType.TOURNAMENT) {
+    if (partySize == null || partySize === "") {
+      size = null;
+    } else if (!Number.isInteger(partySize) || partySize < 1) {
+      return NextResponse.json(
+        { error: "Party size must be a positive integer" },
+        { status: 400 }
+      );
+    } else {
+      size = partySize;
+    }
+  } else {
+    size = Number.isInteger(partySize) ? partySize : 4;
+    if (size! < 1 || size! > 5) {
+      return NextResponse.json(
+        { error: "Party size must be between 1 and 5" },
+        { status: 400 }
+      );
+    }
   }
 
   const creatorId = session.user.id;
@@ -58,6 +81,13 @@ export async function POST(req: Request) {
       course: course.trim(),
       teeOffAt: when,
       partySize: size,
+      type: tournament.type,
+      externalUrl: tournament.externalUrl,
+      signupDeadline: tournament.signupDeadline,
+      rangeOpensTime: tournament.rangeOpensTime,
+      isShotgun: tournament.isShotgun,
+      format: tournament.format,
+      entryFee: tournament.entryFee,
       lat: coords?.lat ?? null,
       lon: coords?.lon ?? null,
       notes: notes ?? null,

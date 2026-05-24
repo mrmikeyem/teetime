@@ -3,6 +3,10 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import {
+  TournamentFieldsBlock,
+  type TournamentFieldsState,
+} from "../../tournament-fields";
 
 const COURSE_SHORTCUTS = [
   "Kings Walk",
@@ -19,6 +23,8 @@ export function EditForm({
   initialTime,
   initialPartySize,
   initialNotes,
+  initialType,
+  initialTournament,
 }: {
   teeTimeId: string;
   initialCourse: string;
@@ -26,6 +32,8 @@ export function EditForm({
   initialTime: string;
   initialPartySize: number;
   initialNotes: string;
+  initialType: "TEE_TIME" | "TOURNAMENT";
+  initialTournament: TournamentFieldsState;
 }) {
   const router = useRouter();
   const [error, setError] = useState("");
@@ -35,6 +43,9 @@ export function EditForm({
   const [time, setTime] = useState(initialTime);
   const [partySize, setPartySize] = useState(initialPartySize);
   const [notes, setNotes] = useState(initialNotes);
+  const [type, setType] = useState<"TEE_TIME" | "TOURNAMENT">(initialType);
+  const [tournament, setTournament] =
+    useState<TournamentFieldsState>(initialTournament);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -48,8 +59,15 @@ export function EditForm({
       body: JSON.stringify({
         course: course.trim(),
         teeOffAt,
-        partySize,
+        partySize: type === "TOURNAMENT" ? null : partySize,
+        type,
         notes: notes.trim() || null,
+        externalUrl: tournament.externalUrl,
+        signupDeadline: tournament.signupDeadline,
+        rangeOpensTime: tournament.rangeOpensTime,
+        isShotgun: tournament.isShotgun,
+        format: tournament.format,
+        entryFee: tournament.entryFee,
       }),
     });
 
@@ -82,8 +100,36 @@ export function EditForm({
         )}
 
         <div>
+          <label className="block text-sm font-medium">Type</label>
+          <div className="mt-1 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setType("TEE_TIME")}
+              className={`rounded-lg border px-3 py-2 text-sm font-semibold ${
+                type === "TEE_TIME"
+                  ? "border-emerald-700 bg-emerald-700 text-white"
+                  : "border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:border-emerald-700"
+              }`}
+            >
+              ⛳ Tee time
+            </button>
+            <button
+              type="button"
+              onClick={() => setType("TOURNAMENT")}
+              className={`rounded-lg border px-3 py-2 text-sm font-semibold ${
+                type === "TOURNAMENT"
+                  ? "border-amber-600 bg-amber-600 text-white"
+                  : "border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:border-amber-600"
+              }`}
+            >
+              🏆 Tournament
+            </button>
+          </div>
+        </div>
+
+        <div>
           <label className="block text-sm font-medium" htmlFor="course">
-            Course
+            {type === "TOURNAMENT" ? "Tournament / venue" : "Course"}
           </label>
           <input
             id="course"
@@ -138,25 +184,31 @@ export function EditForm({
           </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium">Party size</label>
-          <div className="mt-1 flex gap-2">
-            {[2, 3, 4, 5].map((n) => (
-              <button
-                key={n}
-                type="button"
-                onClick={() => setPartySize(n)}
-                className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold ${
-                  partySize === n
-                    ? "border-emerald-700 bg-emerald-700 text-white"
-                    : "border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:border-emerald-700"
-                }`}
-              >
-                {n}
-              </button>
-            ))}
+        {type === "TOURNAMENT" && (
+          <TournamentFieldsBlock value={tournament} onChange={setTournament} />
+        )}
+
+        {type === "TEE_TIME" && (
+          <div>
+            <label className="block text-sm font-medium">Party size</label>
+            <div className="mt-1 flex gap-2">
+              {[2, 3, 4, 5].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setPartySize(n)}
+                  className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold ${
+                    partySize === n
+                      ? "border-emerald-700 bg-emerald-700 text-white"
+                      : "border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:border-emerald-700"
+                  }`}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         <div>
           <label className="block text-sm font-medium" htmlFor="notes">

@@ -266,10 +266,13 @@ function CalendarCell({
       {firstTee && (
         <div className="space-y-0.5">
           <div className="truncate font-semibold text-emerald-800 dark:text-emerald-200">
+            {firstTee.type === "TOURNAMENT" && <span aria-hidden>🏆 </span>}
             {firstTee.course}
           </div>
           <div className="font-semibold text-emerald-700 dark:text-emerald-300">
-            {firstTee.members.length}/{firstTee.partySize}
+            {firstTee.type === "TOURNAMENT"
+              ? `${firstTee.members.length} playing`
+              : `${firstTee.members.length}/${firstTee.partySize}`}
           </div>
           {extra > 0 && <div className="text-emerald-600 dark:text-emerald-400">+{extra}</div>}
         </div>

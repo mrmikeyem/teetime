@@ -11,7 +11,8 @@ export type TeeTimeListItem = {
   id: string;
   course: string;
   teeOffAt: string;
-  partySize: number;
+  partySize: number | null;
+  type: "TEE_TIME" | "TOURNAMENT";
   creatorName: string;
   members: { name: string; confirmed: boolean }[];
   weather: WeatherSummary | null;
@@ -53,9 +54,14 @@ export function ListWithCalendar({
         <ul className="space-y-3">
           {teeTimes.map((t) => {
             const teeOff = new Date(t.teeOffAt);
+            const isTournament = t.type === "TOURNAMENT";
             const confirmed = t.members.filter((m) => m.confirmed).length;
-            const tooManyConfirmed = confirmed > t.partySize;
-            const overCapacity = t.members.length > t.partySize;
+            const tooManyConfirmed =
+              !isTournament && t.partySize != null && confirmed > t.partySize;
+            const overCapacity =
+              !isTournament &&
+              t.partySize != null &&
+              t.members.length > t.partySize;
             return (
               <li
                 key={t.id}
@@ -63,7 +69,10 @@ export function ListWithCalendar({
               >
                 <Link href={`/tee-times/${t.id}`} className="block space-y-1">
                   <div className="flex items-baseline justify-between gap-2">
-                    <h2 className="font-semibold">{t.course}</h2>
+                    <h2 className="font-semibold">
+                      {isTournament && <span aria-hidden>🏆 </span>}
+                      {t.course}
+                    </h2>
                     <span className="text-xs text-gray-500 dark:text-gray-400">
                       {formatDate(teeOff)}
                     </span>
@@ -78,21 +87,29 @@ export function ListWithCalendar({
                     />
                   </div>
                   <div className="flex flex-wrap items-center gap-2 text-xs">
-                    <span
-                      className={`rounded-full px-2 py-0.5 font-semibold ${
-                        tooManyConfirmed
-                          ? "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300"
-                          : confirmed === t.partySize
-                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
-                          : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
-                      }`}
-                    >
-                      {confirmed}/{t.partySize} confirmed
-                    </span>
-                    {overCapacity && (
+                    {isTournament ? (
                       <span className="rounded-full bg-amber-100 px-2 py-0.5 font-semibold text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
-                        ⚠️ {t.members.length}/{t.partySize}
+                        Tournament · {t.members.length} playing
                       </span>
+                    ) : (
+                      <>
+                        <span
+                          className={`rounded-full px-2 py-0.5 font-semibold ${
+                            tooManyConfirmed
+                              ? "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300"
+                              : confirmed === t.partySize
+                              ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
+                              : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                          }`}
+                        >
+                          {confirmed}/{t.partySize} confirmed
+                        </span>
+                        {overCapacity && (
+                          <span className="rounded-full bg-amber-100 px-2 py-0.5 font-semibold text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                            ⚠️ {t.members.length}/{t.partySize}
+                          </span>
+                        )}
+                      </>
                     )}
                     {t.weather && <WeatherChip weather={t.weather} />}
                     <span className="truncate text-gray-500 dark:text-gray-400">

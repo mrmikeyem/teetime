@@ -233,6 +233,11 @@ export async function notifyNewTeeTime(opts: {
     if (!teeTime) return;
     if (teeTime.teeOffAt.getTime() < Date.now()) return;
 
+    // Skip broadcast for tournaments — they have unlimited capacity and
+    // would spam everyone on every new tournament. Tournament discovery
+    // happens via the calendar/list, not email.
+    if (teeTime.partySize == null) return;
+
     const openSpots = teeTime.partySize - teeTime.members.length;
     if (openSpots <= 0) return;
 

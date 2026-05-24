@@ -314,25 +314,35 @@ export function reminderEmail(opts: {
   detailUrl: string;
   unsubscribeUrl: string;
   whatToExpect?: string | null;
+  isTournament?: boolean;
+  isShotgun?: boolean;
 }) {
-  const { name, course, teeOffAt, roster, confirmUrl, leaveUrl, detailUrl, unsubscribeUrl, whatToExpect } = opts;
+  const { name, course, teeOffAt, roster, confirmUrl, leaveUrl, detailUrl, unsubscribeUrl, whatToExpect, isTournament, isShotgun } = opts;
   const when = formatTeeOff(teeOffAt);
-  const subject = `Tee time in 1 hour — ${course}, ${when}`;
+  const noun = isTournament ? "Tournament" : "Tee time";
+  const startLabel = isShotgun ? "Shotgun start" : isTournament ? "Start" : "Tee off";
+  const subject = isTournament
+    ? `${isShotgun ? "Shotgun" : "Tournament"} in 1 hour — ${course}, ${when}`
+    : `Tee time in 1 hour — ${course}, ${when}`;
 
   const rosterText = roster
     .map((r) => `  ${r.confirmed ? "✓" : "•"} ${r.name}${r.isGuest ? " (guest)" : ""}`)
     .join("\n");
 
+  const intro = isTournament
+    ? `You're playing in a tournament in about an hour:`
+    : `You're scheduled to tee off in about an hour:`;
+
   const text =
     `Hi ${name},\n\n` +
-    `You're scheduled to tee off in about an hour:\n\n` +
-    `Course: ${course}\n` +
-    `When: ${when}\n\n` +
+    `${intro}\n\n` +
+    `${isTournament ? "Tournament" : "Course"}: ${course}\n` +
+    `${startLabel}: ${when}\n\n` +
     (whatToExpect ? `What to expect: ${whatToExpect}\n\n` : "") +
     `Group:\n${rosterText}\n\n` +
     `Confirm you're playing: ${confirmUrl}\n` +
     `Can't make it (leave): ${leaveUrl}\n` +
-    `Tee time details: ${detailUrl}\n`;
+    `${noun} details: ${detailUrl}\n`;
 
   const rosterHtml = roster
     .map((r) => {
@@ -356,22 +366,28 @@ export function reminderEmail(opts: {
         </table>`
     : "";
 
+  const venueLabel = isTournament ? "Tournament" : "Course";
+  const introHtml = isTournament
+    ? `You're playing in a tournament in about an hour.${isShotgun ? " Shotgun start." : ""}`
+    : "You're scheduled to tee off in about an hour.";
+  const detailLinkText = isTournament ? "View tournament details" : "View tee time details";
+
   const html = shell(
     `
         <p style="margin:0 0 12px 0;">Hi ${escapeHtml(name)},</p>
-        <p style="margin:0 0 16px 0;">You're scheduled to tee off in about an hour.</p>
+        <p style="margin:0 0 16px 0;">${introHtml}</p>
         <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 16px 0;width:100%;background-color:#f9fafb;border-radius:8px;">
           <tr><td style="padding:14px 16px;">
-            <p style="margin:0 0 4px 0;font-size:13px;color:#6b7280;text-transform:uppercase;letter-spacing:0.04em;">Course</p>
+            <p style="margin:0 0 4px 0;font-size:13px;color:#6b7280;text-transform:uppercase;letter-spacing:0.04em;">${venueLabel}</p>
             <p style="margin:0 0 10px 0;font-size:16px;font-weight:600;">${escapeHtml(course)}</p>
-            <p style="margin:0 0 4px 0;font-size:13px;color:#6b7280;text-transform:uppercase;letter-spacing:0.04em;">When</p>
+            <p style="margin:0 0 4px 0;font-size:13px;color:#6b7280;text-transform:uppercase;letter-spacing:0.04em;">${startLabel}</p>
             <p style="margin:0;font-size:16px;font-weight:600;">${escapeHtml(when)}</p>
           </td></tr>
         </table>${whatToExpectHtml}
         <p style="margin:0 0 6px 0;font-size:13px;color:#6b7280;text-transform:uppercase;letter-spacing:0.04em;">Group</p>
         <ul style="list-style:none;padding:0;margin:0 0 18px 0;">${rosterHtml}</ul>
         <div>${btn("I'm playing", confirmUrl)}${btnSecondary("Can't make it", leaveUrl)}</div>
-        <p style="margin:14px 0 0 0;font-size:13px;"><a href="${detailUrl}" style="color:${BRAND_GREEN};">View tee time details &rarr;</a></p>
+        <p style="margin:14px 0 0 0;font-size:13px;"><a href="${detailUrl}" style="color:${BRAND_GREEN};">${detailLinkText} &rarr;</a></p>
 `,
     { unsubscribeUrl }
   );

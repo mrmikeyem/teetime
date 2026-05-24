@@ -87,6 +87,8 @@ export async function POST(req: Request) {
           detailUrl: `${APP_URL}/tee-times/${t.id}`,
           unsubscribeUrl: buildActionUrl(unsubscribe.rawToken, "unsubscribe"),
           whatToExpect,
+          isTournament: t.type === "TOURNAMENT",
+          isShotgun: t.isShotgun,
         });
 
         await sendMail({ to: m.user.email, subject, text, html });

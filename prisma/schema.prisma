@@ -14,6 +14,23 @@ enum UserRole {
   @@map("user_role")
 }
 
+enum TeeTimeType {
+  TEE_TIME
+  TOURNAMENT
+
+  @@map("tee_time_type")
+}
+
+enum TournamentFormat {
+  STROKE
+  SCRAMBLE
+  BEST_BALL
+  MATCH_PLAY
+  OTHER
+
+  @@map("tournament_format")
+}
+
 model User {
   id                 String    @id @default(uuid()) @db.Uuid
   username           String    @unique
@@ -100,16 +117,23 @@ model Guest {
 }
 
 model TeeTime {
-  id        String   @id @default(uuid()) @db.Uuid
-  course    String
-  teeOffAt  DateTime @map("tee_off_at")
-  partySize Int      @default(4) @map("party_size")
-  lat       Float?
-  lon       Float?
-  notes     String?
-  createdBy String   @map("created_by") @db.Uuid
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id             String            @id @default(uuid()) @db.Uuid
+  course         String
+  teeOffAt       DateTime          @map("tee_off_at")
+  partySize      Int?              @map("party_size")
+  type           TeeTimeType       @default(TEE_TIME)
+  externalUrl    String?           @map("external_url")
+  signupDeadline DateTime?         @map("signup_deadline")
+  rangeOpensTime String?           @map("range_opens_time")
+  isShotgun      Boolean           @default(false) @map("is_shotgun")
+  format         TournamentFormat? @map("format")
+  entryFee       Decimal?          @db.Decimal(10, 2) @map("entry_fee")
+  lat            Float?
+  lon            Float?
+  notes          String?
+  createdBy      String            @map("created_by") @db.Uuid
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
 
   creator User            @relation("CreatedBy", fields: [createdBy], references: [id])
   members TeeTimeMember[]

@@ -10,6 +10,7 @@ import { JoinButton } from "./join-button";
 import { WeatherChip } from "../weather-chip";
 import { getWeatherForTeeTime } from "@/lib/weather";
 import { getRoundSummary } from "@/lib/weather-summary";
+import { AutoRefresh } from "../auto-refresh";
 
 export const dynamic = "force-dynamic";
 
@@ -51,8 +52,11 @@ export default async function TeeTimeDetailPage({
   const isPastTeeTime = teeTime.teeOffAt.getTime() < Date.now();
 
   const confirmedCount = teeTime.members.filter((m) => m.confirmed).length;
-  const overCapacity = teeTime.members.length > teeTime.partySize;
-  const tooManyConfirmed = confirmedCount > teeTime.partySize;
+  // Tournaments have null partySize (unlimited) — no over-capacity concept.
+  const overCapacity =
+    teeTime.partySize != null && teeTime.members.length > teeTime.partySize;
+  const tooManyConfirmed =
+    teeTime.partySize != null && confirmedCount > teeTime.partySize;
 
   const coords =
     teeTime.lat != null && teeTime.lon != null
@@ -80,25 +84,38 @@ export default async function TeeTimeDetailPage({
           {formatDateTime(teeTime.teeOffAt)} — booked by {teeTime.creator.name}
         </p>
         <div className="flex flex-wrap items-center gap-2">
-          <span
-            className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-              tooManyConfirmed
-                ? "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300"
-                : confirmedCount === teeTime.partySize
-                ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300"
-                : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200"
-            }`}
-          >
-            {confirmedCount}/{teeTime.partySize} confirmed
-            {tooManyConfirmed && " · over"}
-          </span>
-          {overCapacity && (
-            <span
-              className="rounded-full bg-amber-100 dark:bg-amber-900/40 px-2.5 py-1 text-xs font-semibold text-amber-800 dark:text-amber-300"
-              title={`${teeTime.members.length} signed up for a party of ${teeTime.partySize}`}
-            >
-              ⚠️ Overbooked · {teeTime.members.length}/{teeTime.partySize}
-            </span>
+          {teeTime.type === "TOURNAMENT" ? (
+            <>
+              <span className="rounded-full bg-amber-100 dark:bg-amber-900/40 px-2.5 py-1 text-xs font-semibold text-amber-800 dark:text-amber-300">
+                🏆 Tournament
+              </span>
+              <span className="rounded-full bg-gray-100 dark:bg-gray-800 px-2.5 py-1 text-xs font-semibold text-gray-700 dark:text-gray-200">
+                {teeTime.members.length} playing
+              </span>
+            </>
+          ) : (
+            <>
+              <span
+                className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                  tooManyConfirmed
+                    ? "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300"
+                    : confirmedCount === teeTime.partySize
+                    ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300"
+                    : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200"
+                }`}
+              >
+                {confirmedCount}/{teeTime.partySize} confirmed
+                {tooManyConfirmed && " · over"}
+              </span>
+              {overCapacity && (
+                <span
+                  className="rounded-full bg-amber-100 dark:bg-amber-900/40 px-2.5 py-1 text-xs font-semibold text-amber-800 dark:text-amber-300"
+                  title={`${teeTime.members.length} signed up for a party of ${teeTime.partySize}`}
+                >
+                  ⚠️ Overbooked · {teeTime.members.length}/{teeTime.partySize}
+                </span>
+              )}
+            </>
           )}
           <Countdown
             teeOffAt={teeTime.teeOffAt.toISOString()}
@@ -111,6 +128,9 @@ export default async function TeeTimeDetailPage({
             <span className="font-semibold">What to expect:</span>{" "}
             {roundSummary.summary}
           </p>
+        )}
+        {teeTime.type === "TOURNAMENT" && (
+          <TournamentInfo teeTime={teeTime} />
         )}
         {teeTime.notes && (
           <p className="mt-2 rounded-lg bg-gray-50 dark:bg-gray-800/50 p-3 text-sm text-gray-700 dark:text-gray-200">
@@ -171,6 +191,7 @@ export default async function TeeTimeDetailPage({
         </Link>
         <DeleteButton teeTimeId={teeTime.id} />
       </div>
+      <AutoRefresh />
     </main>
   );
 }
@@ -184,4 +205,95 @@ function formatDateTime(d: Date) {
     minute: "2-digit",
     timeZone: "America/Chicago",
   });
+}
+
+const FORMAT_LABELS: Record<string, string> = {
+  STROKE: "Stroke play",
+  SCRAMBLE: "Scramble",
+  BEST_BALL: "Best ball",
+  MATCH_PLAY: "Match play",
+  OTHER: "Other",
+};
+
+function TournamentInfo({
+  teeTime,
+}: {
+  teeTime: {
+    rangeOpensTime: string | null;
+    isShotgun: boolean;
+    format: string | null;
+    entryFee: { toString(): string } | null;
+    externalUrl: string | null;
+    signupDeadline: Date | null;
+  };
+}) {
+  const rows: { label: string; value: React.ReactNode }[] = [];
+
+  if (teeTime.isShotgun) {
+    rows.push({ label: "Start", value: "Shotgun" });
+  }
+  if (teeTime.rangeOpensTime) {
+    rows.push({
+      label: "Range opens",
+      value: formatTime(teeTime.rangeOpensTime),
+    });
+  }
+  if (teeTime.format) {
+    rows.push({ label: "Format", value: FORMAT_LABELS[teeTime.format] ?? teeTime.format });
+  }
+  if (teeTime.entryFee) {
+    rows.push({ label: "Entry fee", value: `$${teeTime.entryFee.toString()}` });
+  }
+  if (teeTime.signupDeadline) {
+    rows.push({
+      label: "Sign up by",
+      value: formatDateTime(teeTime.signupDeadline),
+    });
+  }
+  if (teeTime.externalUrl) {
+    rows.push({
+      label: "More info",
+      value: (
+        <a
+          href={teeTime.externalUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-emerald-700 dark:text-emerald-400 hover:underline"
+        >
+          {prettyUrl(teeTime.externalUrl)} ↗
+        </a>
+      ),
+    });
+  }
+
+  if (rows.length === 0) return null;
+
+  return (
+    <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 rounded-lg bg-amber-50/60 dark:bg-amber-900/15 p-3 text-sm">
+      {rows.map((row) => (
+        <div key={row.label} className="contents">
+          <dt className="text-xs font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-300">
+            {row.label}
+          </dt>
+          <dd className="text-gray-700 dark:text-gray-200">{row.value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function formatTime(hhmm: string) {
+  const [h, m] = hhmm.split(":").map(Number);
+  if (Number.isNaN(h) || Number.isNaN(m)) return hhmm;
+  const period = h >= 12 ? "PM" : "AM";
+  const hour12 = h % 12 === 0 ? 12 : h % 12;
+  return `${hour12}:${String(m).padStart(2, "0")} ${period}`;
+}
+
+function prettyUrl(url: string) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
 }

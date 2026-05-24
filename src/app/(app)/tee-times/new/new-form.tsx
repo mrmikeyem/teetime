@@ -7,6 +7,11 @@ import { useSession } from "next-auth/react";
 import { MemberPicker, type PickerItem } from "../member-picker";
 import { WeatherPreview } from "./weather-preview";
 import { resolveTeeOffDefault } from "@/lib/tee-time-defaults";
+import {
+  TournamentFieldsBlock,
+  EMPTY_TOURNAMENT_FIELDS,
+  type TournamentFieldsState,
+} from "../tournament-fields";
 
 const COURSE_SHORTCUTS = [
   "Kings Walk",
@@ -47,6 +52,10 @@ function NewTeeTimeForm({
     resolveTeeOffDefault(initialDate, defaults.weeknight, defaults.weekend)
   );
   const [timeTouched, setTimeTouched] = useState(false);
+  const [type, setType] = useState<"TEE_TIME" | "TOURNAMENT">("TEE_TIME");
+  const [tournament, setTournament] = useState<TournamentFieldsState>(
+    EMPTY_TOURNAMENT_FIELDS
+  );
   const courseRef = useRef<HTMLInputElement>(null);
 
   const creator: PickerItem | null = session?.user
@@ -84,8 +93,15 @@ function NewTeeTimeForm({
       body: JSON.stringify({
         course: courseValue,
         teeOffAt,
-        partySize,
+        partySize: type === "TOURNAMENT" ? null : partySize,
+        type,
         notes,
+        externalUrl: tournament.externalUrl,
+        signupDeadline: tournament.signupDeadline,
+        rangeOpensTime: tournament.rangeOpensTime,
+        isShotgun: tournament.isShotgun,
+        format: tournament.format,
+        entryFee: tournament.entryFee,
         memberUserIds: staged.filter((s) => s.kind === "user").map((s) => s.id),
         memberGuestIds: staged.filter((s) => s.kind === "guest").map((s) => s.id),
       }),
@@ -120,8 +136,36 @@ function NewTeeTimeForm({
         )}
 
         <div>
+          <label className="block text-sm font-medium">Type</label>
+          <div className="mt-1 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setType("TEE_TIME")}
+              className={`rounded-lg border px-3 py-2 text-sm font-semibold ${
+                type === "TEE_TIME"
+                  ? "border-emerald-700 bg-emerald-700 text-white"
+                  : "border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:border-emerald-700"
+              }`}
+            >
+              ⛳ Tee time
+            </button>
+            <button
+              type="button"
+              onClick={() => setType("TOURNAMENT")}
+              className={`rounded-lg border px-3 py-2 text-sm font-semibold ${
+                type === "TOURNAMENT"
+                  ? "border-amber-600 bg-amber-600 text-white"
+                  : "border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:border-amber-600"
+              }`}
+            >
+              🏆 Tournament
+            </button>
+          </div>
+        </div>
+
+        <div>
           <label className="block text-sm font-medium" htmlFor="course">
-            Course
+            {type === "TOURNAMENT" ? "Tournament / venue" : "Course"}
           </label>
           <input
             id="course"
@@ -195,29 +239,35 @@ function NewTeeTimeForm({
 
         <WeatherPreview course={course} date={date} time={time} />
 
-        <div>
-          <label className="block text-sm font-medium">Party size</label>
-          <div className="mt-1 flex gap-2">
-            {[2, 3, 4, 5].map((n) => (
-              <button
-                key={n}
-                type="button"
-                onClick={() => setPartySize(n)}
-                className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold ${
-                  partySize === n
-                    ? "border-emerald-700 bg-emerald-700 text-white"
-                    : "border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:border-emerald-700"
-                }`}
-              >
-                {n}
-              </button>
-            ))}
+        {type === "TOURNAMENT" && (
+          <TournamentFieldsBlock value={tournament} onChange={setTournament} />
+        )}
+
+        {type === "TEE_TIME" && (
+          <div>
+            <label className="block text-sm font-medium">Party size</label>
+            <div className="mt-1 flex gap-2">
+              {[2, 3, 4, 5].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setPartySize(n)}
+                  className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold ${
+                    partySize === n
+                      ? "border-emerald-700 bg-emerald-700 text-white"
+                      : "border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:border-emerald-700"
+                  }`}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         <div>
           <label className="block text-sm font-medium" htmlFor="notes">
-            Notes (optional)
+            {type === "TOURNAMENT" ? "Notes for the group (optional)" : "Notes (optional)"}
           </label>
           <textarea
             id="notes"

@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { Logo } from "@/app/components/logo";
 import { startOfTodayInAppTz } from "@/lib/time";
 import { ListWithCalendar, type TeeTimeListItem } from "./list-with-calendar";
+import { AutoRefresh } from "./auto-refresh";
 import {
   GRAND_FORKS,
   getDailyWeatherGrid,
@@ -67,6 +68,7 @@ export default async function TeeTimesPage() {
     course: t.course,
     teeOffAt: t.teeOffAt.toISOString(),
     partySize: t.partySize,
+    type: t.type,
     creatorName: t.creator.name,
     members: t.members.map((m) => ({
       name: m.user?.name ?? m.guest?.name ?? "(unknown)",
@@ -129,6 +131,7 @@ export default async function TeeTimesPage() {
       </Link>
 
       <ListWithCalendar teeTimes={listItems} dailyWeather={dailyGrid} />
+      <AutoRefresh />
     </main>
   );
 }

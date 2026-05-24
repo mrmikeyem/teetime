@@ -21,6 +21,13 @@ export default async function EditTeeTimePage({
       course: true,
       teeOffAt: true,
       partySize: true,
+      type: true,
+      externalUrl: true,
+      signupDeadline: true,
+      rangeOpensTime: true,
+      isShotgun: true,
+      format: true,
+      entryFee: true,
       notes: true,
     },
   });
@@ -41,14 +48,42 @@ export default async function EditTeeTimePage({
   const initialDate = `${get("year")}-${get("month")}-${get("day")}`;
   const initialTime = `${get("hour") === "24" ? "00" : get("hour")}:${get("minute")}`;
 
+  // Format signupDeadline for datetime-local input (browser-local time).
+  // datetime-local needs "YYYY-MM-DDTHH:mm" without timezone suffix.
+  let signupDeadlineInput = "";
+  if (teeTime.signupDeadline) {
+    const dl = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Chicago",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).formatToParts(teeTime.signupDeadline);
+    const dlGet = (t: string) => dl.find((p) => p.type === t)?.value ?? "";
+    signupDeadlineInput = `${dlGet("year")}-${dlGet("month")}-${dlGet("day")}T${
+      dlGet("hour") === "24" ? "00" : dlGet("hour")
+    }:${dlGet("minute")}`;
+  }
+
   return (
     <EditForm
       teeTimeId={teeTime.id}
       initialCourse={teeTime.course}
       initialDate={initialDate}
       initialTime={initialTime}
-      initialPartySize={teeTime.partySize}
+      initialPartySize={teeTime.partySize ?? 4}
       initialNotes={teeTime.notes ?? ""}
+      initialType={teeTime.type}
+      initialTournament={{
+        externalUrl: teeTime.externalUrl ?? "",
+        signupDeadline: signupDeadlineInput,
+        rangeOpensTime: teeTime.rangeOpensTime ?? "",
+        isShotgun: teeTime.isShotgun,
+        format: teeTime.format ?? "",
+        entryFee: teeTime.entryFee?.toString() ?? "",
+      }}
     />
   );
 }
