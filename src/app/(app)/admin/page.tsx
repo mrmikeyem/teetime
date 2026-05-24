@@ -1,4 +1,4 @@
-import { requireAdmin } from "@/lib/admin";
+import { requireAdmin, isProtectedUserId } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 import { CreateUserForm } from "./create-user-form";
 import { UserRow } from "./user-row";
@@ -52,6 +52,7 @@ export default async function AdminPage() {
                 lastLoginAt: u.lastLoginAt?.toISOString() ?? null,
                 createdAt: u.createdAt.toISOString(),
                 teeTimeCount: u._count.memberships,
+                isProtected: isProtectedUserId(u.id),
               }}
               isSelf={u.id === session.user.id}
             />

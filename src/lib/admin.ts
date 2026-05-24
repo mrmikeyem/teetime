@@ -38,3 +38,23 @@ export async function isAdmin() {
   const role = await currentDbRole(session.user.id);
   return role === "ADMIN";
 }
+
+/**
+ * Read once at module load. Parsing on every check is unnecessary — the env
+ * doesn't change at runtime, and the list is tiny.
+ */
+const PROTECTED_USER_IDS: ReadonlySet<string> = new Set(
+  (process.env.PROTECTED_USER_IDS ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+);
+
+/**
+ * Protected users can't be demoted from ADMIN or deleted by anyone — including
+ * themselves and other admins. Configured via PROTECTED_USER_IDS env var.
+ * Use this as a last-resort guard on irrevocable actions in admin endpoints.
+ */
+export function isProtectedUserId(id: string): boolean {
+  return PROTECTED_USER_IDS.has(id);
+}

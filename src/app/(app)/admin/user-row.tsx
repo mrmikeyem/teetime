@@ -13,6 +13,7 @@ type UserRowProps = {
     lastLoginAt: string | null;
     createdAt: string;
     teeTimeCount: number;
+    isProtected: boolean;
   };
   isSelf: boolean;
 };
@@ -88,6 +89,14 @@ export function UserRow({ user, isSelf }: UserRowProps) {
                 you
               </span>
             )}
+            {user.isProtected && (
+              <span
+                className="rounded-full bg-amber-100 dark:bg-amber-900/40 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:text-amber-300"
+                title="Protected user — cannot be demoted or deleted from the app. Set via PROTECTED_USER_IDS env var."
+              >
+                🛡 protected
+              </span>
+            )}
           </div>
           <p className="mt-0.5 truncate text-xs text-gray-500 dark:text-gray-400">
             <span className="font-mono">{user.username}</span>
@@ -105,8 +114,13 @@ export function UserRow({ user, isSelf }: UserRowProps) {
           <div className="flex flex-wrap items-center gap-2">
             <select
               value={role}
-              disabled={roleBusy}
+              disabled={roleBusy || user.isProtected}
               onChange={(e) => changeRole(e.target.value as "BASIC" | "ADMIN")}
+              title={
+                user.isProtected
+                  ? "Protected user — role cannot be changed."
+                  : undefined
+              }
               className="rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-xs disabled:opacity-50"
             >
               <option value="BASIC">basic</option>
@@ -115,7 +129,12 @@ export function UserRow({ user, isSelf }: UserRowProps) {
             <button
               type="button"
               onClick={handleDelete}
-              disabled={deleting}
+              disabled={deleting || user.isProtected}
+              title={
+                user.isProtected
+                  ? "Protected user — cannot be deleted."
+                  : undefined
+              }
               className={`rounded-md px-2.5 py-1 text-xs font-semibold disabled:opacity-50 ${
                 deleteArmed
                   ? "bg-red-600 text-white hover:bg-red-700"

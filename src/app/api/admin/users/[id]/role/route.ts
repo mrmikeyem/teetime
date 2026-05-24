@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isAdmin } from "@/lib/admin";
+import { isAdmin, isProtectedUserId } from "@/lib/admin";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -26,6 +26,15 @@ export async function POST(
   });
   if (!target) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
+  }
+
+  // Guard: protected users cannot be demoted by anyone — including themselves.
+  // Configured via PROTECTED_USER_IDS env (server-side only, not toggleable in app).
+  if (next === "BASIC" && isProtectedUserId(target.id)) {
+    return NextResponse.json(
+      { error: "This admin is protected and cannot be demoted." },
+      { status: 403 }
+    );
   }
 
   // Guard: don't strand the system without an admin.

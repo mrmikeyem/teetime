@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isAdmin } from "@/lib/admin";
+import { isAdmin, isProtectedUserId } from "@/lib/admin";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -18,6 +18,14 @@ export async function DELETE(
     return NextResponse.json(
       { error: "Can't delete your own account" },
       { status: 409 }
+    );
+  }
+
+  // Protected users (PROTECTED_USER_IDS env) can't be deleted by anyone.
+  if (isProtectedUserId(id)) {
+    return NextResponse.json(
+      { error: "This user is protected and cannot be deleted." },
+      { status: 403 }
     );
   }
 
