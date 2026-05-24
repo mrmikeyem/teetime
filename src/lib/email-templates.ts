@@ -405,6 +405,98 @@ export function reminderEmail(opts: {
   return { subject, text, html };
 }
 
+export function releaseUpdateEmail(opts: {
+  name: string;
+  appUrl: string;
+  unsubscribeUrl: string;
+}) {
+  const { name, appUrl, unsubscribeUrl } = opts;
+  const subject = `What's new in ${APP_NAME} — tournaments, weather, push, and more`;
+
+  const features: { emoji: string; title: string; body: string }[] = [
+    {
+      emoji: "🏆",
+      title: "Tournaments",
+      body:
+        "Alongside regular tee times, you can now post tournaments with a name, venue, format, team size, entry fee, signup deadline, and an info link. Look for the 🏆 toggle when you tap \"+ New tee time\".",
+    },
+    {
+      emoji: "🌦️",
+      title: "AI-written round briefing",
+      body:
+        "Every tee time now gets a one-paragraph \"What to expect\" rundown of conditions for your full 4-hour round, written by Claude. It looks at temperature trajectory, wind direction, recent rainfall, daylight, and UV, then tells you what to wear and what'll affect your play. Shows on the detail page and in the 1-hour reminder email.",
+    },
+    {
+      emoji: "📱",
+      title: "Push notifications",
+      body:
+        "Opt in from /profile to get phone-screen notifications alongside the reminder emails. iPhone users: install the app to your home screen first (Share → Add to Home Screen in Safari), then enable from Profile. Android Chrome works either way.",
+    },
+    {
+      emoji: "✓",
+      title: "\"I'm in\" / \"Can't make it\" buttons",
+      body:
+        "Confirm or drop from a tee time without digging into your inbox. Right on the detail page.",
+    },
+    {
+      emoji: "⏰",
+      title: "Default tee times",
+      body:
+        "Set your usual weeknight and weekend tee-off times in Profile, and they'll pre-fill when you create a new tee time.",
+    },
+    {
+      emoji: "🔄",
+      title: "Live updates",
+      body:
+        "The list and detail pages refresh themselves every 30 seconds, so when someone confirms or joins, you see it without reloading.",
+    },
+  ];
+
+  const text =
+    `Hi ${name},\n\n` +
+    `A bunch of new stuff went live this week. Quick rundown:\n\n` +
+    features
+      .map((f) => `${f.emoji} ${f.title}\n${f.body}\n`)
+      .join("\n") +
+    `\nOpen it: ${appUrl}\n`;
+
+  const featuresHtml = features
+    .map(
+      (f) => `
+        <div style="margin:0 0 18px 0;">
+          <p style="margin:0 0 4px 0;font-size:15px;font-weight:600;color:#111827;">
+            <span style="display:inline-block;width:22px;">${f.emoji}</span>${escapeHtml(
+              f.title
+            )}
+          </p>
+          <p style="margin:0;padding-left:22px;font-size:14px;line-height:1.55;color:#374151;">${escapeHtml(
+            f.body
+          )}</p>
+        </div>`
+    )
+    .join("");
+
+  const html = shell(
+    `
+        <p style="margin:0 0 12px 0;">Hi ${escapeHtml(name)},</p>
+        <p style="margin:0 0 18px 0;">A bunch of new stuff went live this week. Quick rundown:</p>
+        ${featuresHtml}
+        <div style="margin:8px 0 0 0;">
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="display:inline-block;">
+            <tr>
+              <td bgcolor="${BRAND_GREEN}" style="border-radius:8px;">
+                <a href="${appUrl}" target="_blank" style="display:inline-block;padding:12px 20px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;">Open Tee Time Tracker</a>
+              </td>
+            </tr>
+          </table>
+        </div>
+`,
+    { unsubscribeUrl }
+  );
+
+  return { subject, text, html };
+}
+
 function escapeHtml(s: string) {
   return s
     .replace(/&/g, "&amp;")
