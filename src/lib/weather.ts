@@ -91,7 +91,7 @@ export async function getWeatherForTeeTime(
   );
   url.searchParams.set("temperature_unit", "fahrenheit");
   url.searchParams.set("wind_speed_unit", "mph");
-  url.searchParams.set("timezone", "auto");
+  url.searchParams.set("timezone", "UTC");
   url.searchParams.set("forecast_days", "16");
 
   const res = await fetch(url, { next: { revalidate: 60 * 30 } });
@@ -110,15 +110,15 @@ export async function getWeatherForTeeTime(
   const hourly = data.hourly;
   if (!hourly) return null;
 
-  const targetHourLocal = new Date(when);
-  targetHourLocal.setMinutes(0, 0, 0);
-  const targetIso = targetHourLocal.toISOString().slice(0, 13);
+  const targetHourUtc = new Date(when);
+  targetHourUtc.setUTCMinutes(0, 0, 0);
+  const targetIso = targetHourUtc.toISOString().slice(0, 13);
 
   let idx = hourly.time.findIndex((t) => t.slice(0, 13) === targetIso);
   if (idx === -1) {
     let bestDelta = Infinity;
     hourly.time.forEach((t, i) => {
-      const delta = Math.abs(new Date(t).getTime() - when.getTime());
+      const delta = Math.abs(new Date(`${t}Z`).getTime() - when.getTime());
       if (delta < bestDelta) {
         bestDelta = delta;
         idx = i;

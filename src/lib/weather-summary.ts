@@ -50,7 +50,7 @@ export async function getRoundForecast(
   );
   url.searchParams.set("temperature_unit", "fahrenheit");
   url.searchParams.set("wind_speed_unit", "mph");
-  url.searchParams.set("timezone", "auto");
+  url.searchParams.set("timezone", "UTC");
   url.searchParams.set("forecast_days", "16");
 
   const res = await fetch(url, { next: { revalidate: 60 * 30 } });
@@ -70,14 +70,14 @@ export async function getRoundForecast(
   if (!hourly) return null;
 
   const target = new Date(teeOffAt);
-  target.setMinutes(0, 0, 0);
+  target.setUTCMinutes(0, 0, 0);
   const targetIso = target.toISOString().slice(0, 13);
 
   let startIdx = hourly.time.findIndex((t) => t.slice(0, 13) === targetIso);
   if (startIdx === -1) {
     let bestDelta = Infinity;
     hourly.time.forEach((t, i) => {
-      const delta = Math.abs(new Date(t).getTime() - teeOffAt.getTime());
+      const delta = Math.abs(new Date(`${t}Z`).getTime() - teeOffAt.getTime());
       if (delta < bestDelta) {
         bestDelta = delta;
         startIdx = i;
