@@ -24,6 +24,8 @@ model User {
   role               UserRole  @default(BASIC)
   lastLoginAt        DateTime? @map("last_login_at")
   calendarFeedToken  String?   @unique @map("calendar_feed_token")
+  weeknightDefault   String?   @map("weeknight_default")
+  weekendDefault     String?   @map("weekend_default")
   createdAt          DateTime  @default(now()) @map("created_at")
   updatedAt          DateTime  @updatedAt @map("updated_at")
 

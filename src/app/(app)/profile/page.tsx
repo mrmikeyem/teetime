@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { PreferencesForm } from "./preferences-form";
 import { CalendarSync } from "./calendar-sync";
 import { AppearancePicker } from "./appearance-picker";
+import { DefaultsForm } from "./defaults-form";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,14 @@ export default async function AccountPage() {
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { username: true, name: true, email: true, calendarFeedToken: true },
+    select: {
+      username: true,
+      name: true,
+      email: true,
+      calendarFeedToken: true,
+      weeknightDefault: true,
+      weekendDefault: true,
+    },
   });
   if (!user) redirect("/login");
 
@@ -75,6 +83,18 @@ export default async function AccountPage() {
           Appearance
         </h2>
         <AppearancePicker />
+      </section>
+
+      <section className="rounded-lg bg-white p-4 shadow-sm dark:bg-gray-900">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+          Default tee times
+        </h2>
+        <DefaultsForm
+          initial={{
+            weeknightDefault: user.weeknightDefault,
+            weekendDefault: user.weekendDefault,
+          }}
+        />
       </section>
 
       <section className="rounded-lg bg-white p-4 shadow-sm dark:bg-gray-900">
