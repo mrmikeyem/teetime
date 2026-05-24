@@ -9,6 +9,7 @@ import { DeleteButton } from "./delete-button";
 import { JoinButton } from "./join-button";
 import { WeatherChip } from "../weather-chip";
 import { getWeatherForTeeTime } from "@/lib/weather";
+import { getRoundSummary } from "@/lib/weather-summary";
 
 export const dynamic = "force-dynamic";
 
@@ -53,13 +54,19 @@ export default async function TeeTimeDetailPage({
   const overCapacity = teeTime.members.length > teeTime.partySize;
   const tooManyConfirmed = confirmedCount > teeTime.partySize;
 
-  const weather =
+  const coords =
     teeTime.lat != null && teeTime.lon != null
-      ? await getWeatherForTeeTime(
-          { lat: teeTime.lat, lon: teeTime.lon },
-          teeTime.teeOffAt
-        ).catch(() => null)
+      ? { lat: teeTime.lat, lon: teeTime.lon }
       : null;
+
+  const [weather, roundSummary] = await Promise.all([
+    coords
+      ? getWeatherForTeeTime(coords, teeTime.teeOffAt).catch(() => null)
+      : Promise.resolve(null),
+    coords
+      ? getRoundSummary(coords, teeTime.teeOffAt).catch(() => null)
+      : Promise.resolve(null),
+  ]);
 
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-8 space-y-6">
@@ -99,6 +106,12 @@ export default async function TeeTimeDetailPage({
           />
           {weather && <WeatherChip weather={weather} />}
         </div>
+        {roundSummary?.summary && (
+          <p className="mt-2 rounded-lg bg-sky-50 dark:bg-sky-900/20 p-3 text-sm text-sky-900 dark:text-sky-200">
+            <span className="font-semibold">What to expect:</span>{" "}
+            {roundSummary.summary}
+          </p>
+        )}
         {teeTime.notes && (
           <p className="mt-2 rounded-lg bg-gray-50 dark:bg-gray-800/50 p-3 text-sm text-gray-700 dark:text-gray-200">
             {teeTime.notes}

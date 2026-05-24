@@ -6,6 +6,7 @@ import { reminderEmail, type RosterEntry } from "@/lib/email-templates";
 import { shouldNotify } from "@/lib/notifications";
 import { mintToken, buildActionUrl } from "@/lib/email-actions";
 import { startOfTodayInAppTz } from "@/lib/time";
+import { getRoundSummary } from "@/lib/weather-summary";
 
 const REMIND_BEFORE_MIN = 60;
 const WINDOW_MIN = 5;
@@ -49,6 +50,13 @@ export async function POST(req: Request) {
       isGuest: !!m.guestId,
     }));
 
+    const whatToExpect =
+      t.lat != null && t.lon != null
+        ? await getRoundSummary({ lat: t.lat, lon: t.lon }, t.teeOffAt)
+            .then((r) => r?.summary ?? null)
+            .catch(() => null)
+        : null;
+
     for (const m of t.members) {
       if (!m.userId || !m.user?.email || m.remindedAt) continue;
 
@@ -78,6 +86,7 @@ export async function POST(req: Request) {
           leaveUrl: buildActionUrl(leave.rawToken, "leave"),
           detailUrl: `${APP_URL}/tee-times/${t.id}`,
           unsubscribeUrl: buildActionUrl(unsubscribe.rawToken, "unsubscribe"),
+          whatToExpect,
         });
 
         await sendMail({ to: m.user.email, subject, text, html });

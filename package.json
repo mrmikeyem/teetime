@@ -11,6 +11,7 @@
     "db:reset": "npx prisma migrate reset"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.98.0",
     "@hookform/resolvers": "^5.2.2",
     "@prisma/client": "^6.19.2",
     "@tanstack/react-query": "^5.94.5",
