@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { isAdmin } from "@/lib/admin";
 
 export async function POST(req: Request) {
+  if (!(await isAdmin())) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   const { firstName, lastName, email, phone, password } = await req.json();
 
   if (!firstName?.trim() || !lastName?.trim() || !password) {
