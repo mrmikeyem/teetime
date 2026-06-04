@@ -62,10 +62,10 @@ export default async function AdminPage() {
 
       <section className="space-y-3 rounded-lg bg-white dark:bg-gray-900 p-4 shadow-sm">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-          Create user
+          Invite user
         </h2>
         <p className="text-xs text-gray-500 dark:text-gray-400">
-          Create a real user account so they can log in.
+          Send an email invite. They&apos;ll set their own name and password.
         </p>
         <CreateUserForm />
       </section>

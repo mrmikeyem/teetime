@@ -115,6 +115,29 @@ export function passwordResetEmail(opts: { name: string; resetUrl: string }) {
   return { subject, text, html };
 }
 
+export function inviteUserEmail(opts: { setupUrl: string }) {
+  const { setupUrl } = opts;
+  const subject = `Welcome to ${APP_NAME} — set up your account`;
+
+  const text =
+    `Hi,\n\n` +
+    `You've been invited to ${APP_NAME}. Click the link below to enter your ` +
+    `name and choose a password. The link expires in 7 days.\n\n` +
+    `${setupUrl}\n\n` +
+    `Once you're set up, sign in any time at ${APP_URL}.\n`;
+
+  const html = shell(`
+        <p style="margin:0 0 12px 0;">Hi,</p>
+        <p style="margin:0 0 12px 0;">You've been invited to ${APP_NAME}. Click the button below to enter your name and choose a password. This link expires in 7 days.</p>
+        ${btn("Set up my account", setupUrl)}
+        <p style="margin:0 0 12px 0;font-size:13px;color:#6b7280;">Or copy and paste this URL into your browser:</p>
+        <p style="margin:0 0 16px 0;font-size:13px;word-break:break-all;"><a href="${setupUrl}" style="color:${BRAND_GREEN};">${setupUrl}</a></p>
+        <p style="margin:0;font-size:13px;color:#6b7280;">Once you're set up, you can sign in any time at ${APP_URL.replace(/^https?:\/\//, "")}.</p>
+`);
+
+  return { subject, text, html };
+}
+
 export function addedToTeeTimeEmail(opts: {
   recipientName: string;
   addedByName: string;
