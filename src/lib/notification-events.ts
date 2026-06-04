@@ -18,6 +18,26 @@ const INVITE_ACTION_TTL_MS = 14 * 24 * 60 * 60 * 1000; // 14d (or until tee time
 const UNSUBSCRIBE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 /**
+ * Log any rejected sends from a fan-out. Promise.allSettled never rejects,
+ * so without this a failed recipient send disappears without a trace —
+ * which is how the 2026-06-04 rate-limited broadcast went unnoticed.
+ */
+function logFanOutFailures(
+  context: string,
+  recipients: { email: string | null }[],
+  results: PromiseSettledResult<unknown>[]
+) {
+  results.forEach((r, i) => {
+    if (r.status === "rejected") {
+      console.error(
+        `[${context}] send to ${recipients[i]?.email ?? "(unknown)"} failed:`,
+        r.reason
+      );
+    }
+  });
+}
+
+/**
  * Send a "you were added to a tee time" email to a single user.
  * Fire-and-forget from API routes. Errors are logged, not thrown.
  */
@@ -146,7 +166,7 @@ export async function notifyMemberJoined(opts: {
       select: { id: true, name: true, email: true },
     });
 
-    await Promise.allSettled(
+    const results = await Promise.allSettled(
       recipients.map(async (r) => {
         const unsubscribe = await mintToken({
           userId: r.id,
@@ -170,6 +190,7 @@ export async function notifyMemberJoined(opts: {
         }).catch((err) => console.error("[push] memberJoined failed:", err));
       })
     );
+    logFanOutFailures("notifyMemberJoined", recipients, results);
   } catch (err) {
     console.error("[notifyMemberJoined] failed:", err);
   }
@@ -203,7 +224,7 @@ export async function notifyMemberLeft(opts: {
       select: { id: true, name: true, email: true },
     });
 
-    await Promise.allSettled(
+    const results = await Promise.allSettled(
       recipients.map(async (r) => {
         const unsubscribe = await mintToken({
           userId: r.id,
@@ -227,6 +248,7 @@ export async function notifyMemberLeft(opts: {
         }).catch((err) => console.error("[push] memberLeft failed:", err));
       })
     );
+    logFanOutFailures("notifyMemberLeft", recipients, results);
   } catch (err) {
     console.error("[notifyMemberLeft] failed:", err);
   }
@@ -290,7 +312,7 @@ export async function notifyNewTeeTime(opts: {
     );
     if (ttlMs <= 0) return;
 
-    await Promise.allSettled(
+    const results = await Promise.allSettled(
       recipients.map(async (r) => {
         const [join, unsubscribe] = await Promise.all([
           mintToken({ userId: r.id, action: "join", teeTimeId, ttlMs }),
@@ -321,6 +343,7 @@ export async function notifyNewTeeTime(opts: {
         }).catch((err) => console.error("[push] newTeeTime failed:", err));
       })
     );
+    logFanOutFailures("notifyNewTeeTime", recipients, results);
   } catch (err) {
     console.error("[notifyNewTeeTime] failed:", err);
   }
