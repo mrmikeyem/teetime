@@ -20,6 +20,20 @@ What's already live as of the hotfix:
 - Nginx rate limit on `/api/auth/register` and `/api/auth/forgot-password`:
   5 r/m per IP, burst 3, shared zone `teetimes_auth`, both domains.
 
+Live as of 2026-06-04 (invite-by-email flow, commit `1066edb`):
+- `POST /api/auth/register` (still ADMIN-only) now takes **email only**. It
+  creates the user with a provisional username + an unusable random password
+  hash, mints a 7-day single-use token, and emails a setup link. Admins no
+  longer set or know anyone's password.
+- New `/set-password` page: the invitee enters first/last name + a password.
+- New `POST /api/auth/complete-invite`: finalizes username/name/password and
+  consumes the token transactionally (resolves username collisions). Login is
+  impossible for an invited user until they complete this step.
+- Reuses the existing `PasswordResetToken` model — no schema migration.
+- ⚠️ The full invite→setup→login round-trip was deployed without a local DB
+  test (Docker was down); verified via prod build, auth gate, and validation
+  only. Run one real invite end-to-end to fully confirm.
+
 Known gaps this doc addresses, in priority order.
 
 ---
