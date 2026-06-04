@@ -30,9 +30,10 @@ Live as of 2026-06-04 (invite-by-email flow, commit `1066edb`):
   consumes the token transactionally (resolves username collisions). Login is
   impossible for an invited user until they complete this step.
 - Reuses the existing `PasswordResetToken` model — no schema migration.
-- ⚠️ The full invite→setup→login round-trip was deployed without a local DB
-  test (Docker was down); verified via prod build, auth gate, and validation
-  only. Run one real invite end-to-end to fully confirm.
+- ✅ Verified end-to-end in prod 2026-06-04: a real invite went out, the
+  invitee set their name + password, username finalized correctly, the token
+  was consumed, and login succeeded. The username-collision and consume-
+  transaction paths both exercised against live data; test user removed after.
 
 Known gaps this doc addresses, in priority order.
 
