@@ -1,5 +1,21 @@
 # Domain migration: infiniterien.com → tee3golf.com
 
+> **✅ EXECUTED 2026-06-05 (~02:40–03:05 UTC).** Kept for reference; see
+> `docs/INFRA.md` for how prod runs now. Deviations from the plan below:
+> - Driven via Resend + Cloudflare APIs instead of dashboards; email-dark
+>   window was ~10 minutes, domain verified in ~55s.
+> - Phase 3a's `MAIL_FROM` sed didn't match reality — actual `.env` had
+>   the unquoted `MAIL_FROM=no-reply@infiniterien.com`; kept `no-reply@`
+>   (not the plan's `hello@`) on the new domain.
+> - `ics.ts` UID_DOMAIN/PRODID deliberately NOT flipped — changing
+>   calendar UIDs would duplicate every subscribed event.
+> - Added gray-cloud `direct.tee3golf.com` as the SSH/origin escape hatch
+>   (both apex domains were orange-clouded the same night, beyond this
+>   plan's scope).
+> - Push subscriptions: 3 old-origin rows deleted (plan said 1).
+> - Old Resend DNS records backed up to
+>   `/root/.secrets/resend-infiniterien-backup.json`.
+
 Status as of 2026-05-24.
 
 ## What's already done (Week 1, completed 2026-05-24)

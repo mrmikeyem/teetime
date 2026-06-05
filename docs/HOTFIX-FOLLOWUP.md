@@ -1,5 +1,17 @@
 # Hotfix follow-up: harden auth after bot-registration attack
 
+> **Status update 2026-06-05** (see `docs/INFRA.md` for the full picture):
+> - **Item 2 (orange cloud + real-ip): ✅ DONE** — both domains proxied,
+>   `cloudflare-realip.conf` live, verified externally. Went further than
+>   planned: ufw drops 80/443 from non-Cloudflare sources entirely, and
+>   the app binds 127.0.0.1 (direct-to-IP bypass closed).
+> - **Item 3 (fail2ban): ✅ partially** — installed, aggressive sshd jail.
+>   The nginx-abuse jail still needs the `cloudflare-token` ban action
+>   (iptables bans can't touch proxied traffic) + a Zone-Firewall token.
+> - **Item 1 (login rate limit): ⏳ open** — fold into the fail2ban CF
+>   action above.
+> - **Phase 3c bonus (301 old domain): ✅ DONE** as part of the cutover.
+
 Status: drafted 2026-06-04 after the 2026-05-27 → 2026-06-03 attack. The
 hotfix (admin-only registration + nginx rate limits on register/forgot)
 is already live in prod. This doc covers the next-tier defenses to add
