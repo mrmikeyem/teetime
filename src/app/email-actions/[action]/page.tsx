@@ -2,7 +2,13 @@ import { Logo } from "@/app/components/logo";
 import { prisma } from "@/lib/prisma";
 import { createHash } from "node:crypto";
 
-type ActionKey = "confirm" | "decline" | "leave" | "join" | "unsubscribe";
+type ActionKey =
+  | "confirm"
+  | "decline"
+  | "leave"
+  | "join"
+  | "cancel_teetime"
+  | "unsubscribe";
 
 const ACTION_LABELS: Record<ActionKey, { heading: string; body: string; cta: string; cancel?: string }> = {
   confirm: {
@@ -24,6 +30,11 @@ const ACTION_LABELS: Record<ActionKey, { heading: string; body: string; cta: str
     heading: "Join this tee time",
     body: "You'll be added as a pending member.",
     cta: "Join the group",
+  },
+  cancel_teetime: {
+    heading: "Cancel this tee time",
+    body: "This removes the tee time for the whole group, not just you. This can't be undone.",
+    cta: "Cancel the tee time",
   },
   unsubscribe: {
     heading: "Unsubscribe from all emails",
@@ -105,7 +116,7 @@ export default async function EmailActionPage({
 }
 
 function isValidAction(s: string): s is ActionKey {
-  return ["confirm", "decline", "leave", "join", "unsubscribe"].includes(s);
+  return ["confirm", "decline", "leave", "join", "cancel_teetime", "unsubscribe"].includes(s);
 }
 
 function formatTeeOff(date: Date) {

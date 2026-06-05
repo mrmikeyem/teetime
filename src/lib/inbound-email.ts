@@ -170,6 +170,7 @@ export async function fetchReceivedEmail(emailId: string): Promise<ReceivedEmail
 // ---------------------------------------------------------------------------
 
 const extractionZod = z.object({
+  email_kind: z.enum(["confirmation", "cancellation", "other"]),
   is_confirmation: z.boolean(),
   course: z.string().nullable(),
   date: z
@@ -194,6 +195,12 @@ const nullable = (inner: Record<string, unknown>) => ({
 const EXTRACTION_SCHEMA = {
   type: "object",
   properties: {
+    email_kind: {
+      type: "string",
+      enum: ["confirmation", "cancellation", "other"],
+      description:
+        "'confirmation' = a booked tee time. 'cancellation' = a tee time reservation was cancelled/removed. 'other' = anything else (marketing, receipt, general mail).",
+    },
     is_confirmation: {
       type: "boolean",
       description:
@@ -222,6 +229,7 @@ const EXTRACTION_SCHEMA = {
     }),
   },
   required: [
+    "email_kind",
     "is_confirmation",
     "course",
     "date",
@@ -238,9 +246,13 @@ const EXTRACTION_SYSTEM = `You extract golf tee time booking details from emails
 The email is a forward, so ignore forwarding headers/quoting artifacts and read the original confirmation inside it.
 
 Rules:
-- Set is_confirmation to true ONLY if the email clearly confirms a booked tee time or golf reservation (not a marketing email, receipt for something else, or general correspondence).
+- email_kind:
+  - "confirmation" — the email confirms a booked/reserved tee time.
+  - "cancellation" — the email says a tee time reservation was cancelled, removed, or voided (e.g. subject/body containing "Reservation Cancellation", "your reservation has been cancelled", "removed from the tee time"). Still extract course/date/time so the cancelled tee time can be matched.
+  - "other" — marketing, a receipt for something else, or general correspondence.
+- Set is_confirmation to true ONLY when email_kind is "confirmation".
 - course is the specific course being played, not the facility/organization name. ForeUp facility names can cover several courses (e.g. "King's Walk or Lincoln Golf Course"); when the email also names the specific course (e.g. "At Kings Walk"), return that one.
-- date and time are the tee-off date/time as written in the email, in the course's local timezone. Do not convert timezones.
+- date and time are the tee-off date/time as written in the email, in the course's local timezone. Do not convert timezones. For a cancellation, these are the date/time of the tee time being cancelled.
 - If the year is missing, infer it from the current date given in the message: the tee time is in the future, almost always within the next 60 days.
 - Leave any field you cannot find as null. Never guess values that are not in the email.`;
 

@@ -10,6 +10,7 @@ import {
   inboundFailedEmail,
   forwardingSetupEmail,
   forwardingSetupAdminEmail,
+  cancellationDetectedEmail,
 } from "@/lib/email-templates";
 import {
   verifyResendWebhook,
@@ -18,6 +19,7 @@ import {
   ctWallTimeToUtc,
   parseForwardingConfirmation,
 } from "@/lib/inbound-email";
+import { mintToken, buildActionUrl } from "@/lib/email-actions";
 
 const APP_URL = process.env.AUTH_URL ?? "https://tee3golf.com";
 
@@ -201,6 +203,66 @@ export async function POST(req: Request) {
         "I couldn't make sense of the email contents. If it was forwarded as an attachment, try forwarding it inline instead."
       );
       return NextResponse.json({ handled: "extraction failed" });
+    }
+
+    // Cancellation: NEVER auto-act. A ForeUp cancellation is ambiguous (the
+    // member may have just removed themselves, or the whole booking is off).
+    // If we can match it to a tee time the member is on, email them the choice
+    // (remove just me / cancel the whole thing); otherwise drop quietly. Reaches
+    // here identically for manual and auto-forwarded mail — sender is already
+    // resolved above by either path.
+    if (extraction.email_kind === "cancellation" && extraction.date && extraction.time) {
+      processedEmailIds.add(emailId);
+      const teeOffAt = ctWallTimeToUtc(extraction.date, extraction.time);
+      if (!teeOffAt) {
+        return NextResponse.json({ handled: "cancellation: unparseable datetime" });
+      }
+      const teeTime = await prisma.teeTime.findFirst({
+        where: { teeOffAt, members: { some: { userId: sender.id } } },
+        select: { id: true, course: true, teeOffAt: true },
+      });
+      if (!teeTime) {
+        // Nothing on the board matching this cancellation for this member.
+        return NextResponse.json({ handled: "cancellation: no matching tee time" });
+      }
+
+      // Token lives until 1h after tee-off, capped at 14 days (matches the
+      // invite/notification convention) — no point acting after the round.
+      // Floor at 1h so a near-term tee time still yields a usable link.
+      const ttlMs = Math.max(
+        60 * 60 * 1000,
+        Math.min(
+          14 * 24 * 60 * 60 * 1000,
+          teeTime.teeOffAt.getTime() + 60 * 60 * 1000 - Date.now()
+        )
+      );
+      const leave = await mintToken({
+        userId: sender.id,
+        action: "leave",
+        teeTimeId: teeTime.id,
+        ttlMs,
+      });
+      const cancel = await mintToken({
+        userId: sender.id,
+        action: "cancel_teetime",
+        teeTimeId: teeTime.id,
+        ttlMs,
+      });
+      const tpl = cancellationDetectedEmail({
+        name: sender.name,
+        course: teeTime.course,
+        teeOffAt: teeTime.teeOffAt,
+        detailUrl: `${APP_URL}/tee-times/${teeTime.id}`,
+        leaveUrl: buildActionUrl(leave.rawToken, "leave"),
+        cancelUrl: buildActionUrl(cancel.rawToken, "cancel_teetime"),
+      });
+      void sendMail({ to: sender.email, ...tpl, kind: "inbound-cancellation" }).catch(
+        () => {}
+      );
+      console.log(
+        `[inbound-email] cancellation detected for tee time ${teeTime.id}; emailed ${sender.email} the choice (no auto-action)`
+      );
+      return NextResponse.json({ handled: "cancellation: emailed member", id: teeTime.id });
     }
 
     if (!extraction.is_confirmation || !extraction.date || !extraction.time) {

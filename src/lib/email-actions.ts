@@ -7,6 +7,7 @@ export type EmailActionType =
   | "decline"
   | "leave"
   | "join"
+  | "cancel_teetime"
   | "unsubscribe";
 
 const ONE_SHOT_ACTIONS: ReadonlySet<EmailActionType> = new Set([
@@ -14,6 +15,7 @@ const ONE_SHOT_ACTIONS: ReadonlySet<EmailActionType> = new Set([
   "decline",
   "leave",
   "join",
+  "cancel_teetime",
 ]);
 
 const APP_URL = process.env.AUTH_URL ?? "https://tee3golf.com";

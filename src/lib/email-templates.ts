@@ -663,3 +663,41 @@ export function forwardingSetupAdminEmail(opts: { requestedBy: string }) {
 
   return { subject, text, html };
 }
+
+// --- Inbound cancellation detected (member chooses what to do) --------------
+
+export function cancellationDetectedEmail(opts: {
+  name: string;
+  course: string;
+  teeOffAt: Date;
+  detailUrl: string;
+  leaveUrl: string;
+  cancelUrl: string;
+}) {
+  const { name, course, teeOffAt, detailUrl, leaveUrl, cancelUrl } = opts;
+  const when = formatTeeOff(teeOffAt);
+  const subject = `Cancelled in ForeUp? — ${course}, ${when}`;
+
+  const text =
+    `Hi ${name},\n\n` +
+    `We noticed a cancellation come through for this tee time:\n\n` +
+    `${course}\n${when}\n\n` +
+    `We didn't change anything — you might have just removed yourself, or the whole ` +
+    `booking might be off. What would you like to do?\n\n` +
+    `• Just remove me from the tee time:\n${leaveUrl}\n\n` +
+    `• Cancel the whole tee time for the group:\n${cancelUrl}\n\n` +
+    `If nothing changed on our end, you can ignore this — the tee time stays as-is.\n` +
+    `View it: ${detailUrl}\n`;
+
+  const html = shell(`
+        <p style="margin:0 0 12px 0;">Hi ${escapeHtml(name)},</p>
+        <p style="margin:0 0 12px 0;">We noticed a cancellation come through for this tee time:</p>
+        <p style="margin:0 0 12px 0;"><strong>${escapeHtml(course)}</strong><br />${when}</p>
+        <p style="margin:0 0 12px 0;">We didn't change anything — you might have just removed yourself, or the whole booking might be off. What would you like to do?</p>
+        ${btn("Just remove me", leaveUrl)}
+        ${btnSecondary("Cancel the whole tee time", cancelUrl)}
+        <p style="margin:12px 0 0 0;color:#6b7280;font-size:13px;">If nothing changed on our end, ignore this — the tee time stays as-is. <a href="${detailUrl}" style="color:#047857;">View it</a>.</p>
+`);
+
+  return { subject, text, html };
+}
