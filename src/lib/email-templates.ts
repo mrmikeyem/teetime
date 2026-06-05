@@ -528,3 +528,23 @@ function escapeHtml(s: string) {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 }
+
+export function newUserJoinedAdminEmail(opts: {
+  newUserName: string;
+  newUserEmail: string;
+}) {
+  const { newUserName, newUserEmail } = opts;
+  const subject = `New user joined: ${newUserName}`;
+
+  const text =
+    `${newUserName} (${newUserEmail}) just finished setting up their ` +
+    `${APP_NAME} account.\n\n` +
+    `Manage users: ${APP_URL}/admin\n`;
+
+  const html = shell(`
+        <p style="margin:0 0 12px 0;"><strong>${newUserName}</strong> (${newUserEmail}) just finished setting up their ${APP_NAME} account.</p>
+        ${btn("Manage users", `${APP_URL}/admin`)}
+`);
+
+  return { subject, text, html };
+}

@@ -1,0 +1,3 @@
+# Private group app — nothing here is for search engines.
+User-agent: *
+Disallow: /

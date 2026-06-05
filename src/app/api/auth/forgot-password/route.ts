@@ -31,7 +31,7 @@ export async function POST(req: Request) {
       name: user.name,
       resetUrl,
     });
-    await sendMail({ to: emailClean, subject, text, html });
+    await sendMail({ to: emailClean, subject, text, html, kind: "password-reset" });
   }
 
   return NextResponse.json({ ok: true });

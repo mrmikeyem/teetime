@@ -22,6 +22,8 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: "Tee Time Tracker",
   description: "Track. Plan. Shank. Repeat.",
+  // Private group app — keep it out of search indexes entirely.
+  robots: { index: false, follow: false },
   applicationName: "Tee Time Tracker",
   manifest: "/manifest.webmanifest",
   appleWebApp: {

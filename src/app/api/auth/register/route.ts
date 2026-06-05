@@ -74,7 +74,7 @@ export async function POST(req: Request) {
   const { subject, text, html } = inviteUserEmail({ setupUrl });
 
   try {
-    await sendMail({ to: emailClean, subject, text, html });
+    await sendMail({ to: emailClean, subject, text, html, kind: "invite" });
   } catch {
     return NextResponse.json(
       {

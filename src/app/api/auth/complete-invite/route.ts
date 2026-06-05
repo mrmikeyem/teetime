@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createHash } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { sendMail } from "@/lib/mailer";
+import { newUserJoinedAdminEmail } from "@/lib/email-templates";
 
 export async function POST(req: Request) {
   const { token, firstName, lastName, password } = await req.json();
@@ -66,6 +68,37 @@ export async function POST(req: Request) {
       where: { userId: record.userId, usedAt: null, id: { not: record.id } },
     }),
   ]);
+
+  // Let every admin know a new account is live. Best-effort — a mail
+  // failure must not break the signup.
+  try {
+    const [newUser, admins] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: record.userId },
+        select: { name: true, email: true },
+      }),
+      prisma.user.findMany({
+        where: { role: "ADMIN" },
+        select: { email: true },
+      }),
+    ]);
+    if (newUser) {
+      const { subject, text, html } = newUserJoinedAdminEmail({
+        newUserName: newUser.name,
+        newUserEmail: newUser.email ?? "no email on file",
+      });
+      await Promise.allSettled(
+        admins
+          .map((a) => a.email)
+          .filter((email): email is string => !!email)
+          .map((email) =>
+            sendMail({ to: email, subject, text, html, kind: "admin-alert" })
+          )
+      );
+    }
+  } catch (err) {
+    console.error("[complete-invite] admin notification failed:", err);
+  }
 
   return NextResponse.json({ ok: true, username });
 }

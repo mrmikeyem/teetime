@@ -93,7 +93,7 @@ export async function POST(req: Request) {
           isShotgun: t.isShotgun,
         });
 
-        await sendMail({ to: m.user.email, subject, text, html });
+        await sendMail({ to: m.user.email, subject, text, html, kind: "reminder" });
 
         // Fire push to any subscribed devices for this user. Failure here
         // shouldn't kill the email send — fire-and-forget with a logged error.

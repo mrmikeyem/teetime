@@ -109,7 +109,7 @@ export async function notifyAddedToTeeTime(opts: {
       unsubscribeUrl: buildActionUrl(unsubscribe.rawToken, "unsubscribe"),
     });
 
-    await sendMail({ to: user.email, subject, text, html });
+    await sendMail({ to: user.email, subject, text, html, kind: "added-to-tee-time" });
 
     sendPushToUser(userId, {
       title: `${adder.name} added you to a tee time`,
@@ -181,7 +181,7 @@ export async function notifyMemberJoined(opts: {
           detailUrl: `${APP_URL}/tee-times/${teeTime.id}`,
           unsubscribeUrl: buildActionUrl(unsubscribe.rawToken, "unsubscribe"),
         });
-        await sendMail({ to: r.email!, subject, text, html });
+        await sendMail({ to: r.email!, subject, text, html, kind: "member-joined" });
         sendPushToUser(r.id, {
           title: `${joiner.name} joined your tee time`,
           body: teeTime.course,
@@ -239,7 +239,7 @@ export async function notifyMemberLeft(opts: {
           detailUrl: `${APP_URL}/tee-times/${teeTimeId}`,
           unsubscribeUrl: buildActionUrl(unsubscribe.rawToken, "unsubscribe"),
         });
-        await sendMail({ to: r.email!, subject, text, html });
+        await sendMail({ to: r.email!, subject, text, html, kind: "member-left" });
         sendPushToUser(r.id, {
           title: `${leaverName} left your tee time`,
           body: course,
@@ -332,7 +332,7 @@ export async function notifyNewTeeTime(opts: {
           detailUrl: `${APP_URL}/tee-times/${teeTimeId}`,
           unsubscribeUrl: buildActionUrl(unsubscribe.rawToken, "unsubscribe"),
         });
-        await sendMail({ to: r.email!, subject, text, html });
+        await sendMail({ to: r.email!, subject, text, html, kind: "new-tee-time" });
         sendPushToUser(r.id, {
           title: `New tee time at ${teeTime.course}`,
           body: `${teeTime.creator.name} booked it — ${

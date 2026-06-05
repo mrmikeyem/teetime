@@ -179,3 +179,17 @@ model TeeTimeMember {
   @@unique([teeTimeId, guestId])
   @@map("tee_time_members")
 }
+
+model EmailLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  to        String
+  subject   String
+  kind      String   @default("other")
+  status    String // SENT | FAILED
+  error     String?
+  attempts  Int      @default(1)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("email_log")
+}

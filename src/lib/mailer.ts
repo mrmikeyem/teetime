@@ -1,12 +1,32 @@
 import "server-only";
 import nodemailer from "nodemailer";
+import { prisma } from "@/lib/prisma";
 
 type SendMailArgs = {
   to: string;
   subject: string;
   text: string;
   html?: string;
+  /** Category shown in the admin email log (e.g. "reminder", "invite"). */
+  kind?: string;
 };
+
+// Best-effort audit trail for the admin email log — logging must never
+// break or delay a send.
+async function logEmail(entry: {
+  to: string;
+  subject: string;
+  kind: string;
+  status: "SENT" | "FAILED";
+  error?: string;
+  attempts: number;
+}) {
+  try {
+    await prisma.emailLog.create({ data: entry });
+  } catch (err) {
+    console.error("[mailer] failed to write email_log:", err);
+  }
+}
 
 const host = process.env.SMTP_HOST;
 const port = Number(process.env.SMTP_PORT ?? 25);
@@ -36,7 +56,13 @@ let lastSendAt = 0;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-export async function sendMail({ to, subject, text, html }: SendMailArgs) {
+export async function sendMail({
+  to,
+  subject,
+  text,
+  html,
+  kind = "other",
+}: SendMailArgs) {
   if (!transport) {
     console.log("\n[mailer:dev] SMTP_HOST not set — would have sent:");
     console.log(`  To:      ${to}`);
@@ -52,9 +78,20 @@ export async function sendMail({ to, subject, text, html }: SendMailArgs) {
       if (wait > 0) await sleep(wait);
       try {
         await transport.sendMail({ from, to, subject, text, html });
+        await logEmail({ to, subject, kind, status: "SENT", attempts: attempt });
         return;
       } catch (err) {
-        if (attempt >= MAX_ATTEMPTS) throw err;
+        if (attempt >= MAX_ATTEMPTS) {
+          await logEmail({
+            to,
+            subject,
+            kind,
+            status: "FAILED",
+            error: err instanceof Error ? err.message : String(err),
+            attempts: attempt,
+          });
+          throw err;
+        }
         console.error(
           `[mailer] send to ${to} failed (attempt ${attempt}/${MAX_ATTEMPTS}), retrying:`,
           err
