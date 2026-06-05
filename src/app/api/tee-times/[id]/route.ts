@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { geocodeCourse } from "@/lib/weather";
 import { parseTournamentFields } from "@/lib/tournament";
 import { TeeTimeType } from "@prisma/client";
+import { broadcastChange } from "@/lib/events";
 
 export async function DELETE(
   _req: Request,
@@ -20,6 +21,8 @@ export async function DELETE(
   if (result.count === 0) {
     return NextResponse.json({ error: "Tee time not found" }, { status: 404 });
   }
+
+  broadcastChange(id);
 
   return NextResponse.json({ ok: true });
 }
@@ -120,6 +123,8 @@ export async function PATCH(
       data: { remindedAt: null },
     });
   }
+
+  broadcastChange(id);
 
   return NextResponse.json({ ok: true });
 }

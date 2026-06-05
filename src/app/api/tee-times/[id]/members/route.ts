@@ -6,6 +6,7 @@ import {
   notifyMemberJoined,
   notifyMemberLeft,
 } from "@/lib/notification-events";
+import { broadcastChange } from "@/lib/events";
 
 export async function POST(
   req: Request,
@@ -66,6 +67,8 @@ export async function POST(
     );
   }
 
+  broadcastChange(teeTimeId);
+
   if (userId) {
     // Tell the new member (if added by someone else) and tell the rest of the group.
     // The helper functions skip themselves where appropriate.
@@ -117,6 +120,8 @@ export async function PATCH(
   if (result.count === 0) {
     return NextResponse.json({ error: "Member not found" }, { status: 404 });
   }
+
+  broadcastChange(teeTimeId);
 
   return NextResponse.json({ ok: true });
 }
@@ -171,6 +176,10 @@ export async function DELETE(
     : { teeTimeId, guestId: guestId as string };
 
   const result = await prisma.teeTimeMember.deleteMany({ where });
+
+  if (result.count > 0) {
+    broadcastChange(teeTimeId);
+  }
 
   if (result.count > 0 && teeTime) {
     await notifyMemberLeft({

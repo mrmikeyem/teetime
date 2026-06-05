@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { geocodeCourse } from "@/lib/weather";
 import { notifyAddedToTeeTime, notifyNewTeeTime } from "@/lib/notification-events";
+import { broadcastChange } from "@/lib/events";
 import { parseTournamentFields } from "@/lib/tournament";
 import { TeeTimeType } from "@prisma/client";
 
@@ -111,6 +112,8 @@ export async function POST(req: Request) {
       },
     },
   });
+
+  broadcastChange(teeTime.id);
 
   await Promise.allSettled([
     ...extraUserIds.map((userId) =>

@@ -10,6 +10,7 @@ import {
   notifyMemberJoined,
   notifyMemberLeft,
 } from "@/lib/notification-events";
+import { broadcastChange } from "@/lib/events";
 
 const APP_URL = process.env.AUTH_URL ?? "https://infiniterien.com";
 
@@ -59,6 +60,10 @@ export async function POST(
   } catch (err) {
     const message = err instanceof Error ? err.message : "Something went wrong.";
     return redirectToResult("error", message);
+  }
+
+  if (action !== "unsubscribe" && row.teeTimeId) {
+    broadcastChange(row.teeTimeId);
   }
 
   if (action !== "unsubscribe") {
