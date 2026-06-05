@@ -701,3 +701,78 @@ export function cancellationDetectedEmail(opts: {
 
   return { subject, text, html };
 }
+
+// --- Enhancement announcement: email-to-tee-time + how to set it up ---------
+
+const INBOUND_ADDRESS = "tee@tee3golf.com";
+
+export function forwardingHowToEmail(opts: {
+  name: string;
+  appUrl: string;
+  unsubscribeUrl: string;
+}) {
+  const { name, appUrl, unsubscribeUrl } = opts;
+  const subject = `New: turn your ForeUp booking into a tee time automatically`;
+
+  const gmailSteps = [
+    `On a computer, open Gmail → gear (⚙️) → "See all settings".`,
+    `"Forwarding and POP/IMAP" tab → "Add a forwarding address" → enter ${INBOUND_ADDRESS} → Next/Proceed.`,
+    `Gmail emails a confirmation. We forward that confirmation link straight back to your inbox — open it and click "Confirm".`,
+    `Now make TWO filters. Open the "Filters and Blocked Addresses" tab → "Create a new filter".`,
+    `Filter 1 (new bookings): From = no-reply@foreupsoftware.com, Subject = Reservation Details. Click "Create filter", then check "Forward it to: ${INBOUND_ADDRESS}" and click "Create filter".`,
+    `Filter 2 (cancellations): "Create a new filter" again. From = no-reply@foreupsoftware.com, Subject = Reservation Cancellation Details. Click "Create filter", check "Forward it to: ${INBOUND_ADDRESS}", "Create filter".`,
+    `Leave "Skip the Inbox" unchecked on both so you keep your own copy. That's it — bookings and cancellations now flow in automatically.`,
+  ];
+
+  const text =
+    `Hi ${name},\n\n` +
+    `Quick upgrade: you can now turn a course booking into a tee time on the board ` +
+    `without typing anything in.\n\n` +
+    `THE EASY WAY (works with any email — Gmail, Outlook, Hotmail, anything):\n` +
+    `When you get a booking confirmation from the course, just forward it to ` +
+    `${INBOUND_ADDRESS}. We read the course, date, time and players and put it on ` +
+    `the board, with you on it. Forward a cancellation the same way and we'll ask ` +
+    `whether to drop just you or cancel the whole thing — we never change anything ` +
+    `on our own.\n\n` +
+    `SET-AND-FORGET (Gmail only):\n` +
+    `Set up two one-time filters and Gmail will forward your bookings and ` +
+    `cancellations automatically, so you never have to think about it:\n\n` +
+    gmailSteps.map((s, i) => `${i + 1}. ${s}`).join("\n") +
+    `\n\n` +
+    `On Outlook/Hotmail the automatic filter isn't supported yet — just use the ` +
+    `forward-it method above, which works great.\n\n` +
+    `Open the app: ${appUrl}\n`;
+
+  const gmailStepsHtml = gmailSteps
+    .map(
+      (s) =>
+        `<li style="margin:0 0 8px 0;">${escapeHtml(s).replace(
+          /(no-reply@foreupsoftware\.com|tee@tee3golf\.com|Reservation Cancellation Details|Reservation Details)/g,
+          '<code style="background:#f3f4f6;padding:1px 4px;border-radius:3px;">$1</code>'
+        )}</li>`
+    )
+    .join("\n");
+
+  const html = shell(
+    `
+        <p style="margin:0 0 12px 0;">Hi ${escapeHtml(name)},</p>
+        <p style="margin:0 0 16px 0;">Quick upgrade: you can now turn a course booking into a tee time on the board without typing anything in.</p>
+
+        <p style="margin:0 0 6px 0;font-size:15px;font-weight:600;color:#111827;">The easy way — works with any email</p>
+        <p style="margin:0 0 16px 0;">When you get a booking confirmation from the course, just <strong>forward it to <a href="mailto:${INBOUND_ADDRESS}" style="color:#047857;">${INBOUND_ADDRESS}</a></strong>. We read the course, date, time and players and put it on the board with you on it. Forward a <em>cancellation</em> the same way and we'll ask whether to drop just you or cancel the whole thing — we never change anything on our own.</p>
+
+        <p style="margin:0 0 6px 0;font-size:15px;font-weight:600;color:#111827;">Set-and-forget (Gmail only)</p>
+        <p style="margin:0 0 8px 0;">Set up two one-time filters and Gmail forwards your bookings and cancellations automatically:</p>
+        <ol style="margin:0 0 16px 0;padding-left:20px;">
+          ${gmailStepsHtml}
+        </ol>
+
+        <p style="margin:0 0 16px 0;color:#6b7280;font-size:13px;">On Outlook/Hotmail the automatic filter isn't supported yet — just use the forward-it method above, which works great.</p>
+
+        ${btn("Open the app", appUrl)}
+`,
+    { unsubscribeUrl }
+  );
+
+  return { subject, text, html };
+}
