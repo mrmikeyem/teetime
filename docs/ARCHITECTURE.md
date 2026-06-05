@@ -40,8 +40,9 @@ react-hook-form · Tailwind · `@anthropic-ai/sdk` (weather blurbs).
 - `POST /api/email-actions/[action]` — consumes `EmailActionToken`s (no session)
 - `GET /api/calendar/[token]` — per-user ICS feed (token auth)
 - `POST /api/cron/reminders` — `x-cron-secret` header auth; hit by systemd timer every 5 min
-- `POST /api/inbound/email` — Resend `email.received` webhook (svix-signature auth). Forwarded booking confirmation → Haiku extraction → dedupe → tee time created as the forwarding member
+- `POST /api/inbound/email` — Resend `email.received` webhook (svix-signature auth). Member resolved by `From:` (manual fwd) or forwarding headers (Gmail auto-fwd). Haiku classifies `email_kind`: confirmation → dedupe → tee time created as the forwarder; cancellation → email the member a choice (never auto-acts); Google forwarding-confirmation → relayed to the requesting member (onboarding)
 - `/api/admin/users/[id]` (+`/role`) — admin user management; protected-user guard in `lib/admin.ts`
+- `POST /api/admin/broadcast/forwarding-howto` — admin-only one-off enhancement announcement (supports `testTo`/`dryRun`); respects `unsubscribedAll`
 - `/api/profile/*` — push subscription, calendar token rotation, defaults, notification prefs
 - `/api/guests`, `/api/users/search`, `/api/weather`
 
@@ -62,7 +63,7 @@ react-hook-form · Tailwind · `@anthropic-ai/sdk` (weather blurbs).
 | `ics.ts` | calendar feed rendering; **UID_DOMAIN frozen at infiniterien.com on purpose** (stable UIDs) |
 | `weather.ts` | Open-Meteo geocode (24h cache) + forecast (30m cache) |
 | `weather-summary.ts` | `getRoundSummary` — Claude `claude-haiku-4-5` blurb for the detail page |
-| `inbound-email.ts` | webhook signature verify (svix scheme, no dep), Resend received-email fetch, Haiku booking extraction (JSON-schema output + zod), CT-wall-time→UTC |
+| `inbound-email.ts` | webhook signature verify (svix scheme, no dep), Resend received-email fetch, `forwardingMailboxes()` (Gmail auto-fwd member from headers), Haiku `email_kind` classification + booking extraction (JSON-schema + zod), `parseForwardingConfirmation()` (Google onboarding link), CT-wall-time→UTC |
 | `tournament.ts` | `parseTournamentFields` — validation for the TOURNAMENT variant |
 | `time.ts` | America/Chicago helpers (`startOfTodayInAppTz`) — app displays Central, server runs UTC |
 | `tee-time-defaults.ts` | per-user new-tee-time defaults |
@@ -85,16 +86,27 @@ password hash) + 7-day token → invite email → `/set-password` →
 inside the window with `remindedAt IS NULL` get email+push → `remindedAt`
 stamped; editing a tee time's time clears it so reminders re-fire.
 
-**Forwarded confirmation** (email-to-tee-time): member forwards a ForeUp
-confirmation to `tee@tee3golf.com` → Resend webhook → verify signature →
-sender's From must match a member email (that IS the auth; strangers are
-dropped silently) → fetch full body from Resend → Haiku extracts
-course/date/time/players (course canonicalized against existing course
-spellings — ForeUp reports the facility, e.g. "King's Walk or Lincoln Golf
-Course") → CT wall time → UTC → dedupe on exact `teeOffAt` (duplicate →
-"already on the board" reply) → create with forwarder as confirmed booker →
-`broadcastChange` + `notifyNewTeeTime` + "created" reply. Failures get a
-"couldn't read that" reply pointing at /tee-times/new.
+**Email-to-tee-time**: member forwards a ForeUp email to `tee@tee3golf.com`
+→ Resend webhook → verify signature → **resolve the member**: by `From:` if
+it's a member (manual forward), else by the `Delivered-To`/`X-Forwarded-For`
+headers (Gmail filter auto-forward keeps the original `From:`, e.g. ForeUp;
+Gmail's `+caf_` envelope passes SPF so it can't be forged). Strangers dropped
+silently. Fetch full body from Resend → Haiku classifies `email_kind`:
+- **confirmation** → extract course/date/time/players (course canonicalized
+  against existing spellings — ForeUp reports the facility, e.g. "King's Walk
+  or Lincoln Golf Course") → CT wall time → UTC → dedupe on exact `teeOffAt`
+  (duplicate → "already on the board" reply) → create with forwarder as
+  confirmed booker → `broadcastChange` + `notifyNewTeeTime` + "created" reply.
+- **cancellation** → NEVER auto-acts (ambiguous: removed self vs whole booking
+  off). If it matches a tee time the member is on, email them `leave` /
+  `cancel_teetime` action links; else drop quietly.
+- Failures get a "couldn't read that" reply pointing at /tee-times/new.
+
+**Forwarding onboarding relay**: when a member sets up Gmail auto-forwarding,
+Google's confirmation lands at `tee@` (not them). `parseForwardingConfirmation`
+detects it (`forwarding-noreply@google.com` + `/mail/vf-` link) and relays the
+link to the requesting member's on-file address (parsed address used only to
+look them up); unknown requester → admin alert, no relay.
 
 ## Client patterns worth knowing
 

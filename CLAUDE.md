@@ -52,17 +52,23 @@ the build).
 **Email**: ALL sends go through `sendMail()` in `lib/mailer.ts` — a
 serialized queue (600ms gap, retries) that exists because Resend
 rate-limits per-second; bypassing it re-introduces a fixed prod incident.
-Inbound too: members forward booking confirmations (ForeUp) to
-`tee@tee3golf.com` → Resend `email.received` webhook →
-`POST /api/inbound/email` (svix-signature verified, sender must match a
-member's email) → Claude Haiku extracts the booking (`lib/inbound-email.ts`,
-JSON-schema output) → dedupe on the exact tee-off instant → tee time
-created via the normal path (broadcast + notify) → reply email to the
-forwarder.
+Inbound too: members forward booking emails (ForeUp) to `tee@tee3golf.com`
+→ Resend `email.received` webhook → `POST /api/inbound/email`
+(svix-signature verified). The forwarding member is resolved by `From:` (a
+manual forward) OR, when that misses, by the `Delivered-To`/`X-Forwarded-For`
+headers (a Gmail filter auto-forward keeps the original `From:`, e.g. ForeUp)
+— see `forwardingMailboxes()`. Claude Haiku then classifies `email_kind`
+(`lib/inbound-email.ts`, JSON-schema output):
+- **confirmation** → dedupe on the exact tee-off instant → tee time created
+  via the normal path (broadcast + notify) → reply to the forwarder.
+- **cancellation** → NEVER auto-acts; if it matches a tee time the member is
+  on, emails them a choice (`leave` vs `cancel_teetime`), else drops quietly.
+- a Gmail forwarding-confirmation from Google is detected and relayed to the
+  requesting member (self-service onboarding); unknown requester → admin alert.
 Pass a `kind` — every send is auto-logged to `email_log` and shown at
 `/admin/emails`. Templates live in `lib/email-templates.ts` (shared
 `shell()`/`btn()` helpers). Emails can contain single-use action links
-(confirm/decline/leave/join/unsubscribe) minted by `lib/email-actions.ts`
+(confirm/decline/leave/join/cancel_teetime/unsubscribe) minted by `lib/email-actions.ts`
 and consumed by `POST /api/email-actions/[action]` — tokens are hashed at
 rest and work without a login session.
 
