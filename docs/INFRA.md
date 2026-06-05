@@ -90,6 +90,16 @@ the pre-cutover Resend DNS records backup. App secrets in
   finishes account setup.
 - `lib/ics.ts` UID_DOMAIN/PRODID intentionally still say infiniterien.com:
   calendar UIDs must stay stable or every subscriber's events duplicate.
+- **Inbound (since 2026-06-05)**: `tee@tee3golf.com` (any address at the
+  apex, really) receives via Resend — apex MX
+  `10 inbound-smtp.us-east-1.amazonaws.com` in the Cloudflare zone (MX is
+  DNS-only by nature; added via API). Resend webhook
+  `64cea899-68c2-4dd8-bab6-896ca9a52b97` POSTs `email.received` to
+  `https://tee3golf.com/api/inbound/email`. `.env` carries
+  `RESEND_API_KEY` (full-access — needed to fetch received bodies; the
+  SMTP_PASS key is send-only and can't) and `RESEND_WEBHOOK_SECRET`
+  (svix signing secret). Forwarded ForeUp confirmations become tee times —
+  see ARCHITECTURE.md "Forwarded confirmation" flow.
 
 ## Real-time (SSE)
 

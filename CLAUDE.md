@@ -52,6 +52,13 @@ the build).
 **Email**: ALL sends go through `sendMail()` in `lib/mailer.ts` — a
 serialized queue (600ms gap, retries) that exists because Resend
 rate-limits per-second; bypassing it re-introduces a fixed prod incident.
+Inbound too: members forward booking confirmations (ForeUp) to
+`tee@tee3golf.com` → Resend `email.received` webhook →
+`POST /api/inbound/email` (svix-signature verified, sender must match a
+member's email) → Claude Haiku extracts the booking (`lib/inbound-email.ts`,
+JSON-schema output) → dedupe on the exact tee-off instant → tee time
+created via the normal path (broadcast + notify) → reply email to the
+forwarder.
 Pass a `kind` — every send is auto-logged to `email_log` and shown at
 `/admin/emails`. Templates live in `lib/email-templates.ts` (shared
 `shell()`/`btn()` helpers). Emails can contain single-use action links

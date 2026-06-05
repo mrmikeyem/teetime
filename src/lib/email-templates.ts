@@ -548,3 +548,77 @@ export function newUserJoinedAdminEmail(opts: {
 
   return { subject, text, html };
 }
+
+// --- Inbound email (forwarded booking confirmation) replies -----------------
+
+export function inboundCreatedEmail(opts: {
+  name: string;
+  course: string;
+  teeOffAt: Date;
+  teeTimeUrl: string;
+}) {
+  const { name, course, teeOffAt, teeTimeUrl } = opts;
+  const when = formatTeeOff(teeOffAt);
+  const subject = `Tee time created: ${course} — ${when}`;
+
+  const text =
+    `Hi ${name},\n\n` +
+    `Got your forwarded confirmation — the tee time is on the board:\n\n` +
+    `${course}\n${when}\n\n` +
+    `You're on it as the booker. The rest of the group has been notified.\n\n` +
+    `${teeTimeUrl}\n`;
+
+  const html = shell(`
+        <p style="margin:0 0 12px 0;">Hi ${escapeHtml(name)},</p>
+        <p style="margin:0 0 12px 0;">Got your forwarded confirmation — the tee time is on the board:</p>
+        <p style="margin:0 0 12px 0;"><strong>${escapeHtml(course)}</strong><br />${when}</p>
+        <p style="margin:0 0 12px 0;">You're on it as the booker. The rest of the group has been notified.</p>
+        ${btn("View tee time", teeTimeUrl)}
+`);
+
+  return { subject, text, html };
+}
+
+export function inboundDuplicateEmail(opts: {
+  name: string;
+  course: string;
+  teeOffAt: Date;
+  teeTimeUrl: string;
+}) {
+  const { name, course, teeOffAt, teeTimeUrl } = opts;
+  const when = formatTeeOff(teeOffAt);
+  const subject = `Already on the board: ${course} — ${when}`;
+
+  const text =
+    `Hi ${name},\n\n` +
+    `That tee time is already on the board, so nothing new was created:\n\n` +
+    `${course}\n${when}\n\n` +
+    `${teeTimeUrl}\n`;
+
+  const html = shell(`
+        <p style="margin:0 0 12px 0;">Hi ${escapeHtml(name)},</p>
+        <p style="margin:0 0 12px 0;">That tee time is already on the board, so nothing new was created:</p>
+        <p style="margin:0 0 12px 0;"><strong>${escapeHtml(course)}</strong><br />${when}</p>
+        ${btn("View tee time", teeTimeUrl)}
+`);
+
+  return { subject, text, html };
+}
+
+export function inboundFailedEmail(opts: { name: string; reason: string }) {
+  const { name, reason } = opts;
+  const subject = `Couldn't read that confirmation`;
+
+  const text =
+    `Hi ${name},\n\n` +
+    `I couldn't turn your forwarded email into a tee time: ${reason}\n\n` +
+    `You can create it manually here: ${APP_URL}/tee-times/new\n`;
+
+  const html = shell(`
+        <p style="margin:0 0 12px 0;">Hi ${escapeHtml(name)},</p>
+        <p style="margin:0 0 12px 0;">I couldn't turn your forwarded email into a tee time: ${escapeHtml(reason)}</p>
+        ${btn("Create it manually", `${APP_URL}/tee-times/new`)}
+`);
+
+  return { subject, text, html };
+}
