@@ -60,7 +60,36 @@ export type ReceivedEmail = {
   subject: string | null;
   text: string | null;
   html: string | null;
+  // Mailboxes the message transited before reaching tee@ — i.e. the member who
+  // auto-forwarded it. Populated from the Gmail forwarding headers (see
+  // forwardingMailboxes). Empty for a message sent straight to tee@.
+  forwardedFor: string[];
 };
+
+const OUR_INBOUND_ADDRESS = "tee@tee3golf.com";
+
+/**
+ * Extract the address(es) of the mailbox that auto-forwarded a message to us.
+ *
+ * Gmail filter-forwarding preserves the original `From:` (e.g. ForeUp), so the
+ * forwarding member only shows up in the routing headers. `Delivered-To` is the
+ * cleanest signal (a single bare address); `X-Forwarded-For`'s first token is
+ * the forwarder as a fallback. We drop our own address and dedupe. The caller
+ * decides whether any of these maps to a member.
+ */
+export function forwardingMailboxes(headers: Record<string, unknown>): string[] {
+  const candidates = [
+    String(headers["delivered-to"] ?? ""),
+    String(headers["x-forwarded-for"] ?? "").split(/\s+/)[0] ?? "",
+  ];
+  return [
+    ...new Set(
+      candidates
+        .map((s) => s.trim().toLowerCase())
+        .filter((s) => /^[^@\s]+@[^@\s]+$/.test(s) && s !== OUR_INBOUND_ADDRESS)
+    ),
+  ];
+}
 
 export async function fetchReceivedEmail(emailId: string): Promise<ReceivedEmail> {
   const apiKey = process.env.RESEND_API_KEY;
@@ -79,6 +108,7 @@ export async function fetchReceivedEmail(emailId: string): Promise<ReceivedEmail
     subject: data.subject ?? null,
     text: data.text ?? null,
     html: data.html ?? null,
+    forwardedFor: forwardingMailboxes(data.headers ?? {}),
   };
 }
 

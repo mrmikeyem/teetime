@@ -91,17 +91,43 @@ export async function POST(req: Request) {
     return NextResponse.json({ ignored: "already processed" });
   }
 
-  // Sender must be a member. Unknown senders are dropped silently — never
-  // reply to strangers (backscatter). User.email is nullable; this query
-  // only matches rows that have one.
-  const sender = fromAddr
-    ? await prisma.user.findFirst({
-        where: { email: { equals: fromAddr, mode: "insensitive" } },
-        select: { id: true, name: true, email: true },
-      })
-    : null;
+  // A member must be attributable, by one of two paths:
+  //   1. Manual forward — the member hit "Forward", so `From:` IS their address.
+  //   2. Gmail filter auto-forward — `From:` stays the original sender (e.g.
+  //      ForeUp), and the member only appears in the forwarding headers
+  //      (Delivered-To / X-Forwarded-For). SPF passes for Gmail's +caf_
+  //      auto-forward envelope, so an outside sender can't forge this.
+  // Unknown senders are dropped silently — never reply to strangers (backscatter).
+  const findMember = (addr: string) =>
+    addr
+      ? prisma.user.findFirst({
+          where: { email: { equals: addr, mode: "insensitive" } },
+          select: { id: true, name: true, email: true },
+        })
+      : Promise.resolve(null);
+
+  // Fast path: the original sender is a member (manual forward). Avoids the
+  // Resend fetch for the common case and keeps existing behavior unchanged.
+  let sender = await findMember(fromAddr);
+
+  // Fetched lazily; if the fast path misses we need the headers to find the
+  // forwarding member, and we reuse this same fetch for extraction below.
+  let email: Awaited<ReturnType<typeof fetchReceivedEmail>> | null = null;
+
   if (!sender?.email) {
-    console.log(`[inbound-email] dropped mail from non-member: ${fromAddr}`);
+    email = await fetchReceivedEmail(emailId);
+    for (const addr of email.forwardedFor) {
+      sender = await findMember(addr);
+      if (sender?.email) break;
+    }
+  }
+
+  if (!sender?.email) {
+    console.log(
+      `[inbound-email] dropped mail: no member found (from=${fromAddr || "?"}, forwardedFor=${
+        email ? email.forwardedFor.join(",") || "none" : "n/a"
+      })`
+    );
     processedEmailIds.add(emailId);
     return NextResponse.json({ ignored: "unknown sender" });
   }
@@ -114,7 +140,9 @@ export async function POST(req: Request) {
   };
 
   try {
-    const email = await fetchReceivedEmail(emailId);
+    // Reuse the fetch from sender resolution when the auto-forward path ran;
+    // otherwise (manual forward, matched on From) fetch it now.
+    email = email ?? (await fetchReceivedEmail(emailId));
     const extraction = await extractTeeTime(email);
 
     if (!extraction) {
