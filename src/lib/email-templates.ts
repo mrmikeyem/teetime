@@ -622,3 +622,44 @@ export function inboundFailedEmail(opts: { name: string; reason: string }) {
 
   return { subject, text, html };
 }
+
+// --- Gmail forwarding setup (self-service onboarding relay) -----------------
+
+export function forwardingSetupEmail(opts: { name: string; confirmUrl: string }) {
+  const { name, confirmUrl } = opts;
+  const subject = `Confirm forwarding to ${APP_NAME}`;
+
+  const text =
+    `Hi ${name},\n\n` +
+    `You asked Gmail to auto-forward your tee time confirmations to ${APP_NAME}. ` +
+    `Google sent the confirmation here, so we're passing it along to you.\n\n` +
+    `Click to finish setting up forwarding:\n${confirmUrl}\n\n` +
+    `Once confirmed, your booking confirmations will turn into tee times automatically. ` +
+    `If you didn't set this up, you can ignore this — forwarding won't turn on unless you click.\n`;
+
+  const html = shell(`
+        <p style="margin:0 0 12px 0;">Hi ${escapeHtml(name)},</p>
+        <p style="margin:0 0 12px 0;">You asked Gmail to auto-forward your tee time confirmations to ${APP_NAME}. Google sent the confirmation here, so we're passing it along to you.</p>
+        ${btn("Confirm forwarding", confirmUrl)}
+        <p style="margin:12px 0 0 0;color:#6b7280;font-size:13px;">Once confirmed, your booking confirmations turn into tee times automatically. If you didn't set this up, ignore this — forwarding won't turn on unless you click.</p>
+`);
+
+  return { subject, text, html };
+}
+
+export function forwardingSetupAdminEmail(opts: { requestedBy: string }) {
+  const { requestedBy } = opts;
+  const subject = `Forwarding setup attempt from a non-member`;
+
+  const text =
+    `${requestedBy} tried to set up Gmail forwarding to ${APP_NAME}, but that ` +
+    `address isn't a registered member, so the confirmation link was not relayed.\n\n` +
+    `If they should have access, invite them: ${APP_URL}/admin\n`;
+
+  const html = shell(`
+        <p style="margin:0 0 12px 0;"><strong>${escapeHtml(requestedBy)}</strong> tried to set up Gmail forwarding to ${APP_NAME}, but that address isn't a registered member, so the confirmation link was <strong>not</strong> relayed.</p>
+        ${btn("Manage users", `${APP_URL}/admin`)}
+`);
+
+  return { subject, text, html };
+}

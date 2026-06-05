@@ -91,6 +91,56 @@ export function forwardingMailboxes(headers: Record<string, unknown>): string[] 
   ];
 }
 
+// ---------------------------------------------------------------------------
+// Gmail forwarding-confirmation relay.
+//
+// When a member sets up Gmail auto-forwarding to tee@, Google sends a
+// confirmation email *to tee@* (not to the member) carrying the link they must
+// click to enable forwarding. We detect that email, pull out who requested it
+// and the confirm link, and relay the link to the member so onboarding is
+// self-service instead of an admin fishing it out of the Resend dashboard.
+// ---------------------------------------------------------------------------
+
+const GMAIL_FORWARDING_SENDER = "forwarding-noreply@google.com";
+
+export type ForwardingConfirmation = {
+  /** Gmail address that requested forwarding (parsed from the body). */
+  requestedBy: string;
+  /** The Google link that enables forwarding when clicked. */
+  confirmUrl: string;
+};
+
+/**
+ * If `email` is a Gmail forwarding-confirmation message, extract the requester
+ * and the confirm link; otherwise null. Matches on the Google sender plus the
+ * confirm-link shape (`/mail/vf-...`) so we never mistake the separate cancel
+ * link (`/mail/uf-...`) for it.
+ */
+export function parseForwardingConfirmation(
+  email: Pick<ReceivedEmail, "from" | "subject" | "text" | "html">
+): ForwardingConfirmation | null {
+  const from = email.from.toLowerCase();
+  if (!from.includes(GMAIL_FORWARDING_SENDER)) return null;
+
+  const body = email.text?.trim() || stripHtml(email.html ?? "");
+  if (!body) return null;
+
+  // "<address> has requested to automatically forward mail to your email address"
+  const requester = body.match(
+    /([^\s<>]+@[^\s<>]+)\s+has requested to automatically forward/i
+  );
+  // The confirm link is the verify-forwarding path; the cancel link is /uf-.
+  const confirm = body.match(
+    /https:\/\/mail-settings\.google\.com\/mail\/vf-[^\s<>"]+/i
+  );
+  if (!requester || !confirm) return null;
+
+  return {
+    requestedBy: requester[1].trim().toLowerCase(),
+    confirmUrl: confirm[0],
+  };
+}
+
 export async function fetchReceivedEmail(emailId: string): Promise<ReceivedEmail> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) throw new Error("RESEND_API_KEY not set");

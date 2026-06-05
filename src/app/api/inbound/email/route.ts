@@ -8,12 +8,15 @@ import {
   inboundCreatedEmail,
   inboundDuplicateEmail,
   inboundFailedEmail,
+  forwardingSetupEmail,
+  forwardingSetupAdminEmail,
 } from "@/lib/email-templates";
 import {
   verifyResendWebhook,
   fetchReceivedEmail,
   extractTeeTime,
   ctWallTimeToUtc,
+  parseForwardingConfirmation,
 } from "@/lib/inbound-email";
 
 const APP_URL = process.env.AUTH_URL ?? "https://tee3golf.com";
@@ -105,6 +108,52 @@ export async function POST(req: Request) {
           select: { id: true, name: true, email: true },
         })
       : Promise.resolve(null);
+
+  // Onboarding relay: when a member sets up Gmail auto-forwarding, Google sends
+  // the confirmation link *here* rather than to them. Detect it and relay the
+  // link to the requesting member (looked up by the address Google names) so
+  // they can finish setup themselves. Runs before member resolution because the
+  // From: is Google, not a member.
+  if (fromAddr.toLowerCase().includes("forwarding-noreply@google.com")) {
+    const fetched = await fetchReceivedEmail(emailId);
+    const confirmation = parseForwardingConfirmation(fetched);
+    if (confirmation) {
+      processedEmailIds.add(emailId);
+      const requester = await findMember(confirmation.requestedBy);
+      if (requester?.email) {
+        // Relay to the member's address ON FILE, never an address from the
+        // email body — the parsed address is only used to find the member.
+        const tpl = forwardingSetupEmail({
+          name: requester.name,
+          confirmUrl: confirmation.confirmUrl,
+        });
+        void sendMail({ to: requester.email, ...tpl, kind: "forwarding-setup" }).catch(
+          () => {}
+        );
+        console.log(
+          `[inbound-email] relayed forwarding confirmation to member ${requester.email}`
+        );
+        return NextResponse.json({ handled: "forwarding relay" });
+      }
+      // Unknown requester — don't relay to a stranger; alert admins instead.
+      const admins = await prisma.user.findMany({
+        where: { role: "ADMIN" },
+        select: { email: true },
+      });
+      const tpl = forwardingSetupAdminEmail({ requestedBy: confirmation.requestedBy });
+      void Promise.allSettled(
+        admins
+          .map((a) => a.email)
+          .filter((e): e is string => !!e)
+          .map((e) => sendMail({ to: e, ...tpl, kind: "admin-alert" }))
+      ).catch(() => {});
+      console.log(
+        `[inbound-email] forwarding setup from non-member ${confirmation.requestedBy}; alerted admins`
+      );
+      return NextResponse.json({ handled: "forwarding relay: non-member" });
+    }
+    // Google sender but not a parseable confirmation — drop quietly.
+  }
 
   // Fast path: the original sender is a member (manual forward). Avoids the
   // Resend fetch for the common case and keeps existing behavior unchanged.
