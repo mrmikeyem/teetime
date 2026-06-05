@@ -41,6 +41,10 @@ export function MemberRow({
   }
 
   async function remove() {
+    const ok = window.confirm(
+      `Remove ${name} from this tee time? Other players will be notified.`
+    );
+    if (!ok) return;
     setBusy(true);
     const res = await fetch(`/api/tee-times/${teeTimeId}/members`, {
       method: "DELETE",
