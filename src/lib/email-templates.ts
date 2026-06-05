@@ -1,6 +1,6 @@
 import "server-only";
 
-const APP_URL = process.env.AUTH_URL ?? "https://infiniterien.com";
+const APP_URL = process.env.AUTH_URL ?? "https://tee3golf.com";
 const APP_NAME = "Tee Time Tracker";
 const TAGLINE = "Track. Plan. Shank. Repeat.";
 const LOGO_URL = `${APP_URL}/logo-email.png`;

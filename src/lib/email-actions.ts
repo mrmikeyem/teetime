@@ -16,7 +16,7 @@ const ONE_SHOT_ACTIONS: ReadonlySet<EmailActionType> = new Set([
   "join",
 ]);
 
-const APP_URL = process.env.AUTH_URL ?? "https://infiniterien.com";
+const APP_URL = process.env.AUTH_URL ?? "https://tee3golf.com";
 
 export class EmailActionError extends Error {
   constructor(public code: "invalid" | "expired" | "used") {

@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const SITE_URL = process.env.AUTH_URL ?? "https://infiniterien.com";
+const SITE_URL = process.env.AUTH_URL ?? "https://tee3golf.com";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

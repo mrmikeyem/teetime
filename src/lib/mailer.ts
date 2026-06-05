@@ -12,7 +12,7 @@ const host = process.env.SMTP_HOST;
 const port = Number(process.env.SMTP_PORT ?? 25);
 const user = process.env.SMTP_USER;
 const pass = process.env.SMTP_PASS;
-const from = process.env.MAIL_FROM ?? "no-reply@infiniterien.com";
+const from = process.env.MAIL_FROM ?? "no-reply@tee3golf.com";
 
 const transport = host
   ? nodemailer.createTransport({

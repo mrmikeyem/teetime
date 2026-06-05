@@ -12,7 +12,7 @@ import {
 } from "@/lib/notification-events";
 import { broadcastChange } from "@/lib/events";
 
-const APP_URL = process.env.AUTH_URL ?? "https://infiniterien.com";
+const APP_URL = process.env.AUTH_URL ?? "https://tee3golf.com";
 
 const VALID_ACTIONS: ReadonlySet<EmailActionType> = new Set([
   "confirm",

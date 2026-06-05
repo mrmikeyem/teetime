@@ -10,7 +10,7 @@ import { PushNotifications } from "./push-notifications";
 
 export const dynamic = "force-dynamic";
 
-const APP_URL = process.env.AUTH_URL ?? "https://infiniterien.com";
+const APP_URL = process.env.AUTH_URL ?? "https://tee3golf.com";
 
 export default async function AccountPage() {
   const session = await auth();

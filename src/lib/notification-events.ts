@@ -12,7 +12,7 @@ import { shouldNotify, filterEligibleUsers } from "@/lib/notifications";
 import { mintToken, buildActionUrl } from "@/lib/email-actions";
 import { sendPushToUser } from "@/lib/push";
 
-const APP_URL = process.env.AUTH_URL ?? "https://infiniterien.com";
+const APP_URL = process.env.AUTH_URL ?? "https://tee3golf.com";
 
 const INVITE_ACTION_TTL_MS = 14 * 24 * 60 * 60 * 1000; // 14d (or until tee time, whichever earlier)
 const UNSUBSCRIBE_TTL_MS = 30 * 24 * 60 * 60 * 1000;

@@ -6,7 +6,7 @@ import { isAdmin } from "@/lib/admin";
 import { sendMail } from "@/lib/mailer";
 import { inviteUserEmail } from "@/lib/email-templates";
 
-const APP_URL = process.env.AUTH_URL ?? "https://infiniterien.com";
+const APP_URL = process.env.AUTH_URL ?? "https://tee3golf.com";
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 export async function POST(req: Request) {

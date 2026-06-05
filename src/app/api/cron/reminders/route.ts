@@ -15,7 +15,7 @@ const WINDOW_MIN = 5;
 const ACTION_TTL_MS = 3 * 60 * 60 * 1000; // 3h covers reminder window + tee time
 const UNSUBSCRIBE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30d
 
-const APP_URL = process.env.AUTH_URL ?? "https://infiniterien.com";
+const APP_URL = process.env.AUTH_URL ?? "https://tee3golf.com";
 
 export async function POST(req: Request) {
   if (!authorize(req)) {
