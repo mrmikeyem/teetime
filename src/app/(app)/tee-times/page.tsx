@@ -6,6 +6,7 @@ import { Logo } from "@/app/components/logo";
 import { startOfTodayInAppTz } from "@/lib/time";
 import { ListWithCalendar, type TeeTimeListItem } from "./list-with-calendar";
 import { AutoRefresh } from "./auto-refresh";
+import { NotificationBell, type FeedItem } from "./notification-bell";
 import {
   GRAND_FORKS,
   getDailyWeatherGrid,
@@ -18,6 +19,27 @@ export const dynamic = "force-dynamic";
 export default async function TeeTimesPage() {
   const session = await auth();
   if (!session) redirect("/login");
+
+  const [notifications, unreadCount] = await Promise.all([
+    prisma.notification.findMany({
+      where: { userId: session.user.id },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    }),
+    prisma.notification.count({
+      where: { userId: session.user.id, readAt: null },
+    }),
+  ]);
+
+  const feedItems: FeedItem[] = notifications.map((n) => ({
+    id: n.id,
+    type: n.type,
+    title: n.title,
+    body: n.body,
+    url: n.url,
+    read: n.readAt != null,
+    createdAt: n.createdAt.toISOString(),
+  }));
 
   const teeTimes = await prisma.teeTime.findMany({
     orderBy: { teeOffAt: "asc" },
@@ -94,6 +116,10 @@ export default async function TeeTimesPage() {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <NotificationBell
+            initialItems={feedItems}
+            initialUnread={unreadCount}
+          />
           <Link
             href="/profile"
             className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-800"

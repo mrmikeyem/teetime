@@ -54,6 +54,7 @@ model User {
   emailActionTokens   EmailActionToken[]
   notificationPrefs   NotificationPreference?
   pushSubscriptions   PushSubscription[]
+  notifications       Notification[]
 
   @@map("users")
 }
@@ -71,6 +72,22 @@ model PushSubscription {
 
   @@index([userId])
   @@map("push_subscriptions")
+}
+
+model Notification {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  type      String
+  title     String
+  body      String
+  url       String
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("notifications")
 }
 
 model NotificationPreference {
