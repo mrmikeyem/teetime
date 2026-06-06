@@ -6,7 +6,8 @@ import { Logo } from "@/app/components/logo";
 import { startOfTodayInAppTz } from "@/lib/time";
 import { ListWithCalendar, type TeeTimeListItem } from "./list-with-calendar";
 import { AutoRefresh } from "./auto-refresh";
-import { NotificationBell, type FeedItem } from "./notification-bell";
+import { NotificationBell } from "./notification-bell";
+import { getResolvedFeed } from "@/lib/notification-feed";
 import {
   GRAND_FORKS,
   getDailyWeatherGrid,
@@ -20,26 +21,10 @@ export default async function TeeTimesPage() {
   const session = await auth();
   if (!session) redirect("/login");
 
-  const [notifications, unreadCount] = await Promise.all([
-    prisma.notification.findMany({
-      where: { userId: session.user.id },
-      orderBy: { createdAt: "desc" },
-      take: 20,
-    }),
-    prisma.notification.count({
-      where: { userId: session.user.id, readAt: null },
-    }),
-  ]);
-
-  const feedItems: FeedItem[] = notifications.map((n) => ({
-    id: n.id,
-    type: n.type,
-    title: n.title,
-    body: n.body,
-    url: n.url,
-    read: n.readAt != null,
-    createdAt: n.createdAt.toISOString(),
-  }));
+  const { items: feedItems, unread: unreadCount } = await getResolvedFeed(
+    session.user.id,
+    10
+  );
 
   const teeTimes = await prisma.teeTime.findMany({
     orderBy: { teeOffAt: "asc" },

@@ -2,30 +2,16 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  type FeedItem,
+  type InlineAction,
+  FeedRow,
+  postAction,
+  postDismiss,
+  postReadAll,
+} from "@/app/(app)/notifications/feed-shared";
 
-export type FeedItem = {
-  id: string;
-  type: string;
-  title: string;
-  body: string;
-  url: string;
-  read: boolean;
-  createdAt: string; // ISO
-};
-
-function relativeTime(iso: string): string {
-  const then = new Date(iso).getTime();
-  const diffMs = Date.now() - then;
-  const min = Math.round(diffMs / 60000);
-  if (min < 1) return "just now";
-  if (min < 60) return `${min}m ago`;
-  const hr = Math.round(min / 60);
-  if (hr < 24) return `${hr}h ago`;
-  const day = Math.round(hr / 24);
-  if (day < 7) return `${day}d ago`;
-  const wk = Math.round(day / 7);
-  return `${wk}w ago`;
-}
+export type { FeedItem };
 
 export function NotificationBell({
   initialItems,
@@ -36,14 +22,27 @@ export function NotificationBell({
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  // Optimistic clear on open. Reset whenever the server reports a different
-  // unread count (a new notification arrived via router.refresh), so the
-  // derived badge tracks server state without a setState-in-effect.
-  const [clearedAt, setClearedAt] = useState<number | null>(null);
-  const unread = clearedAt === initialUnread ? 0 : initialUnread;
+  // Overlays over always-fresh server props (set only in event handlers — no
+  // setState/ref during render). `overrides` swaps an item after an inline
+  // action; `dismissed` hides items; `clearedSig` records the props signature
+  // at which the badge was optimistically cleared (re-shows when props change).
+  const [overrides, setOverrides] = useState<Record<string, FeedItem>>({});
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const [clearedSig, setClearedSig] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [flash, setFlash] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
-  // Close on outside click / Escape.
+  const propsSig = `${initialUnread}:${initialItems
+    .map((i) => i.id + i.actionState + i.read)
+    .join(",")}`;
+
+  const items = initialItems
+    .filter((i) => !dismissed.has(i.id))
+    .map((i) => overrides[i.id] ?? i);
+
+  const unread = clearedSig === propsSig ? 0 : initialUnread;
+
   useEffect(() => {
     if (!open) return;
     function onDown(e: MouseEvent) {
@@ -62,26 +61,49 @@ export function NotificationBell({
     };
   }, [open]);
 
+  function showFlash(msg: string) {
+    setFlash(msg);
+    window.setTimeout(() => setFlash(null), 2500);
+  }
+
   async function handleOpen() {
     setOpen(true);
     if (unread === 0) return;
-    // Mark exactly the items currently shown as read — a notification that
-    // lands after this render keeps its unread state.
-    const shownUnreadIds = initialItems
-      .filter((i) => !i.read)
-      .map((i) => i.id);
-    setClearedAt(initialUnread);
-    try {
-      await fetch("/api/notifications/read", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: shownUnreadIds }),
-      });
-      // Re-sync server state so the badge stays cleared across refreshes.
+    const ids = items.filter((i) => !i.read).map((i) => i.id);
+    setClearedSig(propsSig);
+    await postReadAll(ids);
+    router.refresh();
+  }
+
+  async function markAllRead() {
+    setClearedSig(propsSig);
+    await postReadAll();
+    router.refresh();
+  }
+
+  async function dismiss(id: string) {
+    setDismissed((prev) => new Set(prev).add(id));
+    await postDismiss(id);
+    router.refresh();
+  }
+
+  async function act(item: FeedItem, action: InlineAction) {
+    setBusyId(item.id);
+    const { ok, item: updated, error } = await postAction(item.id, action);
+    if (updated) setOverrides((prev) => ({ ...prev, [item.id]: updated }));
+    if (!ok) {
+      showFlash(error ?? "That didn't work.");
+    } else {
+      showFlash(
+        action === "confirm"
+          ? "Confirmed ✓"
+          : action === "join"
+            ? "Joined ✓"
+            : "Declined"
+      );
       router.refresh();
-    } catch {
-      // Leave the optimistic clear; next refresh reconciles.
     }
+    setBusyId(null);
   }
 
   return (
@@ -89,9 +111,7 @@ export function NotificationBell({
       <button
         type="button"
         onClick={() => (open ? setOpen(false) : handleOpen())}
-        aria-label={
-          unread > 0 ? `Notifications, ${unread} unread` : "Notifications"
-        }
+        aria-label={unread > 0 ? `Notifications, ${unread} unread` : "Notifications"}
         className="relative flex h-9 w-9 items-center justify-center rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
       >
         <BellIcon />
@@ -104,38 +124,55 @@ export function NotificationBell({
 
       {open && (
         <div className="absolute right-0 z-20 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
-          <div className="border-b border-gray-100 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:border-gray-700 dark:text-gray-400">
-            Notifications
+          <div className="flex items-center justify-between border-b border-gray-100 px-4 py-2 dark:border-gray-700">
+            <span className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              Notifications
+            </span>
+            {items.some((i) => !i.read) && (
+              <button
+                type="button"
+                onClick={markAllRead}
+                className="text-xs font-medium text-emerald-700 hover:underline dark:text-emerald-400"
+              >
+                Mark all read
+              </button>
+            )}
           </div>
-          {initialItems.length === 0 ? (
+
+          {flash && (
+            <div className="border-b border-gray-100 bg-emerald-50 px-4 py-1.5 text-xs text-emerald-800 dark:border-gray-700 dark:bg-emerald-900/20 dark:text-emerald-300">
+              {flash}
+            </div>
+          )}
+
+          {items.length === 0 ? (
             <p className="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
               You&apos;re all caught up.
             </p>
           ) : (
             <ul className="max-h-96 divide-y divide-gray-100 overflow-y-auto dark:divide-gray-700">
-              {initialItems.map((item) => (
-                <li key={item.id}>
-                  <a
-                    href={item.url}
-                    onClick={() => setOpen(false)}
-                    className={`block px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 ${
-                      item.read ? "" : "bg-emerald-50/60 dark:bg-emerald-900/10"
-                    }`}
-                  >
-                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                      {item.title}
-                    </p>
-                    <p className="truncate text-sm text-gray-600 dark:text-gray-300">
-                      {item.body}
-                    </p>
-                    <p className="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
-                      {relativeTime(item.createdAt)}
-                    </p>
-                  </a>
-                </li>
+              {items.map((item) => (
+                <FeedRow
+                  key={item.id}
+                  item={item}
+                  busy={busyId === item.id}
+                  onAct={act}
+                  onDismiss={dismiss}
+                  onNavigate={() => setOpen(false)}
+                />
               ))}
             </ul>
           )}
+
+          <div className="border-t border-gray-100 px-4 py-2 text-center dark:border-gray-700">
+            <a
+              href="/notifications"
+              onClick={() => setOpen(false)}
+              className="text-xs font-medium text-emerald-700 hover:underline dark:text-emerald-400"
+            >
+              See all
+            </a>
+          </div>
         </div>
       )}
     </div>
