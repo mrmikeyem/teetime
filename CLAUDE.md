@@ -46,8 +46,27 @@ the build).
    and other users won't see the change until the 30s fallback poll.
 2. If users should be told: go through `lib/notification-events.ts`
    (`notifyMemberJoined`, `notifyMemberLeft`, `notifyAddedToTeeTime`,
-   `notifyNewTeeTime`) — these handle email + web push + per-user
-   preference filtering (`lib/notifications.ts`) in one place.
+   `notifyNewTeeTime`). These now fan out to THREE channels in one place:
+   the in-app feed (always — see below), then email + web push gated by
+   per-user preference filtering (`lib/notifications.ts`). Add a new notify
+   path here, not at call sites, or it'll miss a channel.
+
+For member join/leave/confirm, prefer the shared cores in
+`lib/tee-time-actions.ts` (`confirmMembership`/`declineOrLeaveMembership`/
+`joinTeeTime`) — each already does DB write + `broadcastChange` + the right
+`notify*`. The email-action route and the inline feed-action route both call
+these so the two surfaces stay identical; don't re-inline the logic.
+
+**In-app feed (the bell)**: a `Notification` row mirrors every nudge, written
+via `recordNotification` in `lib/notification-feed.ts` — INTENTIONALLY ignoring
+notification prefs (it's the "in case you missed it" channel), so record it
+BEFORE any `shouldNotify`/email/`ttl`/email-presence gate, not after. The
+reminder cron uses `recordNotificationOnce` (idempotent on (user,type,url)) so
+a send-retry or time-edit can't stack duplicates. The bell (`/tee-times`
+header) is server-rendered from `getResolvedFeed`, which attaches a LIVE
+`actionState` per item so inline buttons are never dead; it rides the existing
+SSE refresh (reminders are the lone non-live source). Old rows are pruned by
+the hourly cleanup in the reminders cron (read >30d, any >90d).
 
 **Email**: ALL sends go through `sendMail()` in `lib/mailer.ts` — a
 serialized queue (600ms gap, retries) that exists because Resend

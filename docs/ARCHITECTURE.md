@@ -21,15 +21,16 @@ react-hook-form · Tailwind · `@anthropic-ai/sdk` (weather blurbs).
 | `TeeTimeMember` | `tee_time_members` | exactly one of `userId`/`guestId` (CHECK constraint); `confirmed`; `remindedAt` dedupes the 1h reminder; unique per (teeTime,user) and (teeTime,guest) |
 | `PushSubscription` | `push_subscriptions` | web-push endpoints; **origin-scoped** — a domain change invalidates them all |
 | `NotificationPreference` | `notification_preferences` | per-user opt-outs incl. `unsubscribedAll` (set by email unsubscribe link) |
-| `EmailActionToken` | `email_action_tokens` | single-use hashed tokens for email links (confirm/decline/leave/join/unsubscribe) |
+| `EmailActionToken` | `email_action_tokens` | single-use hashed tokens for email links (confirm/decline/leave/join/cancel_teetime/unsubscribe) |
 | `PasswordResetToken` | `password_reset_tokens` | doubles as the invite-completion token |
 | `EmailLog` | `email_log` | audit row per send (kind/status/error/attempts), written by the mailer |
+| `Notification` | `notifications` | in-app feed (the header bell); a persistent mirror of every nudge — `type`, `title`, `body`, `url` (`/tee-times/<id>`), `readAt`, `dismissedAt`. Written regardless of prefs (the "in case you missed it" channel); pruned hourly (read >30d, any >90d) |
 
 ## Route map
 
 ### Pages
 - `(auth)`: `/login`, `/register` (static invite-only notice), `/forgot-password`, `/reset-password`, `/set-password` (invite completion)
-- `(app)` (middleware-gated): `/tee-times` (list + calendar + SSE auto-refresh), `/tee-times/new`, `/tee-times/[id]` (roster, join/leave/confirm, weather, "what to expect"), `/tee-times/[id]/edit`, `/profile` (push toggle, calendar feed, defaults, prefs), `/account`, `/admin` (users + invites), `/admin/emails` (send log)
+- `(app)` (middleware-gated): `/tee-times` (list + calendar + SSE auto-refresh + notification bell), `/tee-times/new`, `/tee-times/[id]` (roster, join/leave/confirm, weather, "what to expect"), `/tee-times/[id]/edit`, `/notifications` (full activity-feed history), `/profile` (push toggle, calendar feed, defaults, prefs), `/account`, `/admin` (users + invites), `/admin/emails` (send log)
 - `/email-actions/[action]` + `/email-actions/result`: no-login landing pages for email links
 
 ### API (all return JSON; auth = session unless noted)
@@ -44,6 +45,7 @@ react-hook-form · Tailwind · `@anthropic-ai/sdk` (weather blurbs).
 - `/api/admin/users/[id]` (+`/role`) — admin user management; protected-user guard in `lib/admin.ts`
 - `POST /api/admin/broadcast/forwarding-howto` — admin-only one-off enhancement announcement (supports `testTo`/`dryRun`); respects `unsubscribedAll`
 - `/api/profile/*` — push subscription, calendar token rotation, defaults, notification prefs
+- `POST /api/notifications/read` (mark read, all or by ids) · `/dismiss` (soft-dismiss via `dismissedAt`) · `/action` (session-authed inline Confirm/Decline/Join/Leave — re-validates live `actionState`, 409s stale taps, calls the shared `tee-time-actions` cores). No `GET` — the bell is server-rendered from `getResolvedFeed` and refreshes via SSE
 - `/api/guests`, `/api/users/search`, `/api/weather`
 
 ## lib/ inventory
@@ -57,8 +59,10 @@ react-hook-form · Tailwind · `@anthropic-ai/sdk` (weather blurbs).
 | `mailer.ts` | `sendMail({to,subject,text,html,kind})` — THE email choke point: serialized queue (600ms gap, 3 retries) + `email_log` writes |
 | `email-templates.ts` | one function per email kind; shared `shell()`/`btn()` HTML helpers |
 | `email-actions.ts` | `mintToken`/`verifyToken`/`markUsed`/`buildActionUrl` for email link actions |
-| `notification-events.ts` | `notifyMemberJoined/Left/AddedToTeeTime/NewTeeTime` — fan-out: recipients → pref filter → email + push |
-| `notifications.ts` | `shouldNotify`, `filterEligibleUsers` (preference checks) |
+| `tee-time-actions.ts` | `confirmMembership`/`declineOrLeaveMembership`/`joinTeeTime` — shared mutation cores (DB write + `broadcastChange` + `notify*`), called by BOTH the email-action route and the inline feed-action route so they behave identically |
+| `notification-events.ts` | `notifyMemberJoined/Left/AddedToTeeTime/NewTeeTime` — fan-out per recipient: **records the in-app feed (always), then** pref-filters → email + push. Feed write is NOT pref-gated |
+| `notification-feed.ts` | `recordNotification`/`recordNotificationOnce` (write a feed row; "Once" is idempotent on (user,type,url) for the reminder cron), `getResolvedFeed` (load feed + enrich each item with live `actionState`: confirmable/confirmed/joinable/full/already_on/past/gone/none) |
+| `notifications.ts` | `shouldNotify`, `filterEligibleUsers` (preference checks — email/push only; the feed ignores them) |
 | `push.ts` | `sendPushToUser` — web-push, prunes 410-gone endpoints |
 | `ics.ts` | calendar feed rendering; **UID_DOMAIN frozen at infiniterien.com on purpose** (stable UIDs) |
 | `weather.ts` | Open-Meteo geocode (24h cache) + forecast (30m cache) |
@@ -74,8 +78,20 @@ react-hook-form · Tailwind · `@anthropic-ai/sdk` (weather blurbs).
 `/api/tee-times/[id]/members` → unique-constraint create (409 on dupe;
 self-join auto-confirms) → `broadcastChange(teeTimeId)` → every open
 client's EventSource fires `router.refresh()` (~1s) →
-`notifyAddedToTeeTime` + `notifyMemberJoined` fan out email (queued) +
-push to eligible users → each email lands in `email_log`.
+`notifyAddedToTeeTime` + `notifyMemberJoined` record an in-app feed row for
+each recipient (always) then fan out email (queued) + push to eligible
+users → each email lands in `email_log`. The SSE refresh re-renders the bell,
+so the feed badge updates live (~1s) for joins/leaves/adds/new-tee-times.
+
+**In-app feed (the header bell)**: every nudge is mirrored to a `Notification`
+row via `recordNotification`, written regardless of prefs — it's the "in case
+you missed it" channel. The bell on `/tee-times` is server-rendered from
+`getResolvedFeed` (which attaches a LIVE `actionState` per item, so buttons are
+never dead) and rides the existing SSE `router.refresh()`. Items offer inline
+Confirm/Decline/Join/Leave (→ `/api/notifications/action` → shared
+`tee-time-actions` cores), per-item dismiss, and mark-all-read; "See all" opens
+`/notifications`. Reminders are the one non-live source (no `broadcastChange`) —
+they surface on the next refresh/resume/30s-poll.
 
 **Invite a user**: admin POSTs email → provisional user (random unusable
 password hash) + 7-day token → invite email → `/set-password` →
@@ -83,8 +99,10 @@ password hash) + 7-day token → invite email → `/set-password` →
 "admin-alert" email.
 
 **1h reminder**: timer ticks `/api/cron/reminders` → members of tee times
-inside the window with `remindedAt IS NULL` get email+push → `remindedAt`
-stamped; editing a tee time's time clears it so reminders re-fire.
+inside the window with `remindedAt IS NULL` get a feed row
+(`recordNotificationOnce`, idempotent) + email + push → `remindedAt` stamped;
+editing a tee time's time clears it so reminders re-fire. The cron also runs
+the hourly cleanup, which now also prunes old notifications (read >30d, any >90d).
 
 **Email-to-tee-time**: member forwards a ForeUp email to `tee@tee3golf.com`
 → Resend webhook → verify signature → **resolve the member**: by `From:` if
@@ -118,6 +136,11 @@ look them up); unknown requester → admin alert, no relay.
   `router.refresh()`; destructive actions require a `window.confirm`
   (the unguarded ✕ once silently removed a member — don't regress this).
 - `MyStatusBar` uses optimistic local state reconciled by refresh.
+- `NotificationBell` (+ the `/notifications` page) share `feed-shared.tsx`
+  (row rendering + `post*` action helpers). State is a prop-overlay model
+  (`overrides`/`dismissed`/`clearedSig` layered over always-fresh server props)
+  — NOT setState-in-effect/ref-in-render, which the project's react-hooks lint
+  rejects. The panel anchors `left-0 z-30` (it's at the header's left edge).
 - PWA: standalone display; `sw.js` handles push + notification clicks
   only — no fetch caching, so deploys are picked up on next load.
 
