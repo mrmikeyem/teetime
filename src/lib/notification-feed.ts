@@ -46,6 +46,47 @@ export async function recordNotification(opts: {
 }
 
 /**
+ * Like recordNotification, but a no-op if an UNDISMISSED feed row of the same
+ * (userId, type, url) already exists. Used by the reminder cron, whose
+ * remindedAt dedupe protects the EMAIL but not the feed: a transient send
+ * failure (remindedAt left unset → email retried next tick) or a tee-time
+ * time-edit (clears remindedAt by design to re-fire the email) would otherwise
+ * stack duplicate "in 1 hour" bell items. Keying on type+url makes the feed
+ * write idempotent without disturbing the email-retry semantics.
+ */
+export async function recordNotificationOnce(opts: {
+  userId: string;
+  type: FeedType;
+  title: string;
+  body: string;
+  url: string;
+}): Promise<void> {
+  try {
+    const existing = await prisma.notification.findFirst({
+      where: {
+        userId: opts.userId,
+        type: opts.type,
+        url: opts.url,
+        dismissedAt: null,
+      },
+      select: { id: true },
+    });
+    if (existing) return;
+    await prisma.notification.create({
+      data: {
+        userId: opts.userId,
+        type: opts.type,
+        title: opts.title,
+        body: opts.body,
+        url: opts.url,
+      },
+    });
+  } catch (err) {
+    console.error("[recordNotificationOnce] failed:", err);
+  }
+}
+
+/**
  * The action a feed item currently offers, resolved against LIVE tee-time
  * state (so the bell never shows a dead button):
  *  - confirmable: you're on it, not yet confirmed → Confirm / Decline

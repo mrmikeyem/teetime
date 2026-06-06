@@ -8,7 +8,7 @@ import { mintToken, buildActionUrl } from "@/lib/email-actions";
 import { startOfTodayInAppTz } from "@/lib/time";
 import { getRoundSummary } from "@/lib/weather-summary";
 import { sendPushToUser } from "@/lib/push";
-import { recordNotification } from "@/lib/notification-feed";
+import { recordNotificationOnce } from "@/lib/notification-feed";
 
 const REMIND_BEFORE_MIN = 60;
 const WINDOW_MIN = 5;
@@ -63,9 +63,10 @@ export async function POST(req: Request) {
       if (!m.userId || m.remindedAt) continue;
 
       try {
-        // In-app feed records once per member (deduped by remindedAt below),
-        // regardless of prefs or whether they have an email.
-        await recordNotification({
+        // In-app feed records once per (member, tee time), regardless of prefs
+        // or email. Idempotent on its own — remindedAt protects the email, not
+        // the feed (a send failure or a time-edit re-enters this loop).
+        await recordNotificationOnce({
           userId: m.userId,
           type: "reminder",
           title:

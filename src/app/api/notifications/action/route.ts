@@ -8,19 +8,31 @@ import {
 } from "@/lib/tee-time-actions";
 import { getResolvedFeed, type ActionState } from "@/lib/notification-feed";
 
-type InlineAction = "confirm" | "decline" | "join";
+type InlineAction = "confirm" | "decline" | "join" | "leave";
 
-const VALID: ReadonlySet<string> = new Set(["confirm", "decline", "join"]);
+const VALID: ReadonlySet<string> = new Set([
+  "confirm",
+  "decline",
+  "join",
+  "leave",
+]);
 
-/** Which live actionState each inline action requires. */
+/**
+ * Which live actionState each inline action requires.
+ *  - decline: backing out BEFORE confirming (item still 'confirmable')
+ *  - leave:   backing out AFTER confirming (item is 'confirmed')
+ * Both route to the same removal core; the split just mirrors the two UI
+ * affordances and the live state each is valid from.
+ */
 const REQUIRED_STATE: Record<InlineAction, ActionState> = {
   confirm: "confirmable",
   decline: "confirmable",
   join: "joinable",
+  leave: "confirmed",
 };
 
 /**
- * Session-authed inline feed actions (Confirm / Decline / Join). Validates the
+ * Session-authed inline feed actions (Confirm / Decline / Join / Leave). Validates the
  * notification belongs to the user, re-resolves the live actionState to reject
  * stale taps, then calls the shared mutation core (same path as the email
  * links — broadcastChange + notify* included). Returns the refreshed item.
@@ -76,7 +88,7 @@ export async function POST(req: Request) {
 
   try {
     if (act === "confirm") await confirmMembership(userId, item.teeTimeId);
-    else if (act === "decline")
+    else if (act === "decline" || act === "leave")
       await declineOrLeaveMembership(userId, item.teeTimeId);
     else await joinTeeTime(userId, item.teeTimeId);
   } catch (err) {

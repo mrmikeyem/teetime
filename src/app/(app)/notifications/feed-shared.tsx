@@ -23,7 +23,21 @@ export type FeedItem = {
     | "none";
 };
 
-export type InlineAction = "confirm" | "decline" | "join";
+export type InlineAction = "confirm" | "decline" | "join" | "leave";
+
+/** Success toast text for each inline action. */
+export function actionFlash(action: InlineAction): string {
+  switch (action) {
+    case "confirm":
+      return "Confirmed ✓";
+    case "join":
+      return "Joined ✓";
+    case "leave":
+      return "Left";
+    default:
+      return "Declined";
+  }
+}
 
 export function relativeTime(iso: string): string {
   const then = new Date(iso).getTime();
@@ -172,7 +186,19 @@ function ActionRow({
         </div>
       );
     case "confirmed":
-      return <StatusPill>Confirmed ✓</StatusPill>;
+      return (
+        <div className="mt-2 flex items-center gap-3">
+          <StatusPill>Confirmed ✓</StatusPill>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => onAct(item, "leave")}
+            className="text-xs font-medium text-gray-500 underline-offset-2 hover:text-red-600 hover:underline disabled:opacity-50 dark:text-gray-400"
+          >
+            Leave
+          </button>
+        </div>
+      );
     case "already_on":
       return <StatusPill>You&apos;re in ✓</StatusPill>;
     case "full":

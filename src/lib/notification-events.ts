@@ -76,17 +76,12 @@ export async function notifyAddedToTeeTime(opts: {
 
     if (!user || !teeTime || !adder) return;
 
-    // Action TTL is min(14d, time-until-tee-off + 1h)
-    const ttlMs = Math.min(
-      INVITE_ACTION_TTL_MS,
-      teeTime.teeOffAt.getTime() + 60 * 60 * 1000 - Date.now()
-    );
-    if (ttlMs <= 0) return; // tee time already past
-
     const detailUrl = `/tee-times/${teeTime.id}`;
 
-    // In-app feed always records — regardless of prefs and even without an
-    // email — it's the "in case you missed it" channel.
+    // In-app feed always records — regardless of prefs, email, OR how soon the
+    // tee time is. It's the "in case you missed it" channel, so it must fire
+    // before any of the gates below (last-minute adds are exactly the case it
+    // needs to catch).
     await recordNotification({
       userId,
       type: "addedTo",
@@ -94,6 +89,14 @@ export async function notifyAddedToTeeTime(opts: {
       body: teeTime.course,
       url: detailUrl,
     });
+
+    // Action TTL is min(14d, time-until-tee-off + 1h). Past tee-off → no
+    // emailed action links worth minting, so skip the email/push entirely.
+    const ttlMs = Math.min(
+      INVITE_ACTION_TTL_MS,
+      teeTime.teeOffAt.getTime() + 60 * 60 * 1000 - Date.now()
+    );
+    if (ttlMs <= 0) return; // tee time already past — feed already recorded
 
     // Email + push are pref- and email-gated.
     const eligible = await shouldNotify(userId, "addedTo");

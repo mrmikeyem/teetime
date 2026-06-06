@@ -6,6 +6,7 @@ import {
   type FeedItem,
   type InlineAction,
   FeedRow,
+  actionFlash,
   postAction,
   postDismiss,
   postReadAll,
@@ -48,13 +49,7 @@ export function FeedPageClient({ initialItems }: { initialItems: FeedItem[] }) {
     if (!ok) {
       showFlash(error ?? "That didn't work.");
     } else {
-      showFlash(
-        action === "confirm"
-          ? "Confirmed ✓"
-          : action === "join"
-            ? "Joined ✓"
-            : "Declined"
-      );
+      showFlash(actionFlash(action));
       router.refresh();
     }
     setBusyId(null);
