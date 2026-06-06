@@ -6,6 +6,8 @@ import { Logo } from "@/app/components/logo";
 import { startOfTodayInAppTz } from "@/lib/time";
 import { ListWithCalendar, type TeeTimeListItem } from "./list-with-calendar";
 import { AutoRefresh } from "./auto-refresh";
+import { NotificationBell } from "./notification-bell";
+import { getResolvedFeed } from "@/lib/notification-feed";
 import {
   GRAND_FORKS,
   getDailyWeatherGrid,
@@ -19,20 +21,26 @@ export default async function TeeTimesPage() {
   const session = await auth();
   if (!session) redirect("/login");
 
-  const teeTimes = await prisma.teeTime.findMany({
-    orderBy: { teeOffAt: "asc" },
-    where: { teeOffAt: { gte: startOfTodayInAppTz() } },
-    include: {
-      creator: { select: { id: true, name: true } },
-      members: {
+  // Feed and tee-time list are independent — run them concurrently rather than
+  // serializing two query round-trips on this force-dynamic page.
+  const [{ items: feedItems, unread: unreadCount }, teeTimes] =
+    await Promise.all([
+      getResolvedFeed(session.user.id, 10),
+      prisma.teeTime.findMany({
+        orderBy: { teeOffAt: "asc" },
+        where: { teeOffAt: { gte: startOfTodayInAppTz() } },
         include: {
-          user: { select: { id: true, name: true } },
-          guest: { select: { id: true, name: true } },
+          creator: { select: { id: true, name: true } },
+          members: {
+            include: {
+              user: { select: { id: true, name: true } },
+              guest: { select: { id: true, name: true } },
+            },
+            orderBy: { createdAt: "asc" },
+          },
         },
-        orderBy: { createdAt: "asc" },
-      },
-    },
-  });
+      }),
+    ]);
 
   const weatherByTeeId = new Map<string, WeatherSummary | null>();
   await Promise.all(
@@ -94,6 +102,10 @@ export default async function TeeTimesPage() {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <NotificationBell
+            initialItems={feedItems}
+            initialUnread={unreadCount}
+          />
           <Link
             href="/profile"
             className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-800"

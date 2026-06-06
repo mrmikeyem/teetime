@@ -11,6 +11,7 @@ import {
 import { shouldNotify, filterEligibleUsers } from "@/lib/notifications";
 import { mintToken, buildActionUrl } from "@/lib/email-actions";
 import { sendPushToUser } from "@/lib/push";
+import { recordNotification } from "@/lib/notification-feed";
 
 const APP_URL = process.env.AUTH_URL ?? "https://tee3golf.com";
 
@@ -50,9 +51,6 @@ export async function notifyAddedToTeeTime(opts: {
     const { userId, teeTimeId, addedByUserId } = opts;
     if (userId === addedByUserId) return; // don't email someone for adding themselves
 
-    const eligible = await shouldNotify(userId, "addedTo");
-    if (!eligible) return;
-
     const [user, teeTime, adder] = await Promise.all([
       prisma.user.findUnique({
         where: { id: userId },
@@ -76,20 +74,39 @@ export async function notifyAddedToTeeTime(opts: {
       }),
     ]);
 
-    if (!user?.email || !teeTime || !adder) return;
+    if (!user || !teeTime || !adder) return;
+
+    const detailUrl = `/tee-times/${teeTime.id}`;
+
+    // In-app feed always records — regardless of prefs, email, OR how soon the
+    // tee time is. It's the "in case you missed it" channel, so it must fire
+    // before any of the gates below (last-minute adds are exactly the case it
+    // needs to catch).
+    await recordNotification({
+      userId,
+      type: "addedTo",
+      title: `${adder.name} added you to a tee time`,
+      body: teeTime.course,
+      url: detailUrl,
+    });
+
+    // Action TTL is min(14d, time-until-tee-off + 1h). Past tee-off → no
+    // emailed action links worth minting, so skip the email/push entirely.
+    const ttlMs = Math.min(
+      INVITE_ACTION_TTL_MS,
+      teeTime.teeOffAt.getTime() + 60 * 60 * 1000 - Date.now()
+    );
+    if (ttlMs <= 0) return; // tee time already past — feed already recorded
+
+    // Email + push are pref- and email-gated.
+    const eligible = await shouldNotify(userId, "addedTo");
+    if (!eligible || !user.email) return;
 
     const roster: RosterEntry[] = teeTime.members.map((m) => ({
       name: m.user?.name ?? m.guest?.name ?? "(unknown)",
       confirmed: m.confirmed,
       isGuest: !!m.guestId,
     }));
-
-    // Action TTL is min(14d, time-until-tee-off + 1h)
-    const ttlMs = Math.min(
-      INVITE_ACTION_TTL_MS,
-      teeTime.teeOffAt.getTime() + 60 * 60 * 1000 - Date.now()
-    );
-    if (ttlMs <= 0) return; // tee time already past
 
     const [confirm, decline, unsubscribe] = await Promise.all([
       mintToken({ userId, action: "confirm", teeTimeId, ttlMs }),
@@ -105,7 +122,7 @@ export async function notifyAddedToTeeTime(opts: {
       roster,
       confirmUrl: buildActionUrl(confirm.rawToken, "confirm"),
       declineUrl: buildActionUrl(decline.rawToken, "decline"),
-      detailUrl: `${APP_URL}/tee-times/${teeTime.id}`,
+      detailUrl: `${APP_URL}${detailUrl}`,
       unsubscribeUrl: buildActionUrl(unsubscribe.rawToken, "unsubscribe"),
     });
 
@@ -113,8 +130,8 @@ export async function notifyAddedToTeeTime(opts: {
 
     sendPushToUser(userId, {
       title: `${adder.name} added you to a tee time`,
-      body: `${teeTime.course}`,
-      url: `/tee-times/${teeTime.id}`,
+      body: teeTime.course,
+      url: detailUrl,
       tag: `added-${teeTime.id}`,
     }).catch((err) => console.error("[push] addedTo failed:", err));
   } catch (err) {
@@ -158,6 +175,21 @@ export async function notifyMemberJoined(opts: {
 
     if (otherMemberUserIds.length === 0) return;
 
+    const detailUrl = `/tee-times/${teeTime.id}`;
+
+    // In-app feed records for every other member, regardless of prefs.
+    await Promise.all(
+      otherMemberUserIds.map((userId) =>
+        recordNotification({
+          userId,
+          type: "joined",
+          title: `${joiner.name} joined your tee time`,
+          body: teeTime.course,
+          url: detailUrl,
+        })
+      )
+    );
+
     const eligibleIds = await filterEligibleUsers(otherMemberUserIds, "joinedByOther");
     if (eligibleIds.length === 0) return;
 
@@ -178,14 +210,14 @@ export async function notifyMemberJoined(opts: {
           joinerName: joiner.name,
           course: teeTime.course,
           teeOffAt: teeTime.teeOffAt,
-          detailUrl: `${APP_URL}/tee-times/${teeTime.id}`,
+          detailUrl: `${APP_URL}${detailUrl}`,
           unsubscribeUrl: buildActionUrl(unsubscribe.rawToken, "unsubscribe"),
         });
         await sendMail({ to: r.email!, subject, text, html, kind: "member-joined" });
         sendPushToUser(r.id, {
           title: `${joiner.name} joined your tee time`,
           body: teeTime.course,
-          url: `/tee-times/${teeTime.id}`,
+          url: detailUrl,
           tag: `joined-${teeTime.id}-${joinerUserId}`,
         }).catch((err) => console.error("[push] memberJoined failed:", err));
       })
@@ -216,6 +248,21 @@ export async function notifyMemberLeft(opts: {
     const targetUserIds = remainingMemberUserIds.filter((id) => id !== actorUserId);
     if (targetUserIds.length === 0) return;
 
+    const detailUrl = `/tee-times/${teeTimeId}`;
+
+    // In-app feed records for every remaining member, regardless of prefs.
+    await Promise.all(
+      targetUserIds.map((userId) =>
+        recordNotification({
+          userId,
+          type: "left",
+          title: `${leaverName} left your tee time`,
+          body: course,
+          url: detailUrl,
+        })
+      )
+    );
+
     const eligibleIds = await filterEligibleUsers(targetUserIds, "leftByOther");
     if (eligibleIds.length === 0) return;
 
@@ -236,14 +283,14 @@ export async function notifyMemberLeft(opts: {
           leaverName,
           course,
           teeOffAt,
-          detailUrl: `${APP_URL}/tee-times/${teeTimeId}`,
+          detailUrl: `${APP_URL}${detailUrl}`,
           unsubscribeUrl: buildActionUrl(unsubscribe.rawToken, "unsubscribe"),
         });
         await sendMail({ to: r.email!, subject, text, html, kind: "member-left" });
         sendPushToUser(r.id, {
           title: `${leaverName} left your tee time`,
           body: course,
-          url: `/tee-times/${teeTimeId}`,
+          url: detailUrl,
           tag: `left-${teeTimeId}-${leaverName}`,
         }).catch((err) => console.error("[push] memberLeft failed:", err));
       })
@@ -290,11 +337,28 @@ export async function notifyNewTeeTime(opts: {
     const candidates = await prisma.user.findMany({
       where: {
         id: { notIn: Array.from(memberUserIds), not: bookerUserId },
-        email: { not: null },
       },
       select: { id: true, name: true, email: true },
     });
     if (candidates.length === 0) return;
+
+    const detailUrl = `/tee-times/${teeTimeId}`;
+    const feedBody = `${teeTime.creator.name} booked it — ${
+      openSpots === 1 ? "1 open spot" : openSpots + " open spots"
+    }`;
+
+    // In-app feed records for every candidate, regardless of prefs or email.
+    await Promise.all(
+      candidates.map((c) =>
+        recordNotification({
+          userId: c.id,
+          type: "newTeeTime",
+          title: `New tee time at ${teeTime.course}`,
+          body: feedBody,
+          url: detailUrl,
+        })
+      )
+    );
 
     const eligibleIds = await filterEligibleUsers(
       candidates.map((c) => c.id),
@@ -303,7 +367,11 @@ export async function notifyNewTeeTime(opts: {
     if (eligibleIds.length === 0) return;
 
     const eligibleSet = new Set(eligibleIds);
-    const recipients = candidates.filter((c) => eligibleSet.has(c.id));
+    // Email + push only to eligible users that actually have an email.
+    const recipients = candidates.filter(
+      (c) => eligibleSet.has(c.id) && c.email
+    );
+    if (recipients.length === 0) return;
 
     // Token TTL: until 1h after tee-off, capped at 14 days.
     const ttlMs = Math.min(
@@ -329,16 +397,14 @@ export async function notifyNewTeeTime(opts: {
           teeOffAt: teeTime.teeOffAt,
           openSpots,
           joinUrl: buildActionUrl(join.rawToken, "join"),
-          detailUrl: `${APP_URL}/tee-times/${teeTimeId}`,
+          detailUrl: `${APP_URL}${detailUrl}`,
           unsubscribeUrl: buildActionUrl(unsubscribe.rawToken, "unsubscribe"),
         });
         await sendMail({ to: r.email!, subject, text, html, kind: "new-tee-time" });
         sendPushToUser(r.id, {
           title: `New tee time at ${teeTime.course}`,
-          body: `${teeTime.creator.name} booked it — ${
-            openSpots === 1 ? "1 open spot" : openSpots + " open spots"
-          }`,
-          url: `/tee-times/${teeTimeId}`,
+          body: feedBody,
+          url: detailUrl,
           tag: `new-${teeTimeId}`,
         }).catch((err) => console.error("[push] newTeeTime failed:", err));
       })

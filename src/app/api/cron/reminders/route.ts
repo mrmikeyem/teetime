@@ -8,6 +8,7 @@ import { mintToken, buildActionUrl } from "@/lib/email-actions";
 import { startOfTodayInAppTz } from "@/lib/time";
 import { getRoundSummary } from "@/lib/weather-summary";
 import { sendPushToUser } from "@/lib/push";
+import { recordNotificationOnce } from "@/lib/notification-feed";
 
 const REMIND_BEFORE_MIN = 60;
 const WINDOW_MIN = 5;
@@ -59,11 +60,25 @@ export async function POST(req: Request) {
         : null;
 
     for (const m of t.members) {
-      if (!m.userId || !m.user?.email || m.remindedAt) continue;
+      if (!m.userId || m.remindedAt) continue;
 
       try {
+        // In-app feed records once per (member, tee time), regardless of prefs
+        // or email. Idempotent on its own — remindedAt protects the email, not
+        // the feed (a send failure or a time-edit re-enters this loop).
+        await recordNotificationOnce({
+          userId: m.userId,
+          type: "reminder",
+          title:
+            t.type === "TOURNAMENT"
+              ? `${t.isShotgun ? "Shotgun" : "Tournament"} in 1 hour`
+              : "Tee time in 1 hour",
+          body: `${t.name ? t.name + " · " : ""}${t.course}`,
+          url: `/tee-times/${t.id}`,
+        });
+
         const eligible = await shouldNotify(m.userId, "reminder");
-        if (!eligible) {
+        if (!eligible || !m.user?.email) {
           skippedPrefs++;
           await prisma.teeTimeMember.update({
             where: { id: m.id },
@@ -145,14 +160,29 @@ export async function POST(req: Request) {
  * Deletes tee times whose tee-off day has passed in America/Chicago, orphaned
  * guests, expired email-action tokens, and used password-reset tokens.
  */
+const NOTIFICATION_READ_TTL_MS = 30 * 24 * 60 * 60 * 1000; // prune read items after 30d
+const NOTIFICATION_MAX_AGE_MS = 90 * 24 * 60 * 60 * 1000; // backstop: any item after 90d
+
 async function runCleanup(now: Date) {
   const cutoff = startOfTodayInAppTz(now);
+  const readNotifCutoff = new Date(now.getTime() - NOTIFICATION_READ_TTL_MS);
+  const maxNotifCutoff = new Date(now.getTime() - NOTIFICATION_MAX_AGE_MS);
 
-  const [teeTimes, tokens, resetTokens] = await Promise.all([
+  const [teeTimes, tokens, resetTokens, notifications] = await Promise.all([
     prisma.teeTime.deleteMany({ where: { teeOffAt: { lt: cutoff } } }),
     prisma.emailActionToken.deleteMany({ where: { expiresAt: { lt: now } } }),
     prisma.passwordResetToken.deleteMany({
       where: { OR: [{ usedAt: { not: null } }, { expiresAt: { lt: now } }] },
+    }),
+    // Read notifications older than 30d, plus anything older than 90d
+    // (backstop so an unopened bell can't grow without bound).
+    prisma.notification.deleteMany({
+      where: {
+        OR: [
+          { readAt: { not: null }, createdAt: { lt: readNotifCutoff } },
+          { createdAt: { lt: maxNotifCutoff } },
+        ],
+      },
     }),
   ]);
 
@@ -167,6 +197,7 @@ async function runCleanup(now: Date) {
     orphanGuestsDeleted: orphans.count,
     actionTokensDeleted: tokens.count,
     resetTokensDeleted: resetTokens.count,
+    notificationsDeleted: notifications.count,
     cutoff: cutoff.toISOString(),
   };
 }
