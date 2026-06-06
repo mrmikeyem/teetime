@@ -80,9 +80,10 @@ model Notification {
   type      String
   title     String
   body      String
-  url       String
-  readAt    DateTime? @map("read_at")
-  createdAt DateTime  @default(now()) @map("created_at")
+  url         String
+  readAt      DateTime? @map("read_at")
+  dismissedAt DateTime? @map("dismissed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
