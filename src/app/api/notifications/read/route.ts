@@ -29,6 +29,7 @@ export async function POST(req: Request) {
     where: {
       userId: session.user.id,
       readAt: null,
+      dismissedAt: null,
       ...(ids ? { id: { in: ids } } : {}),
     },
     data: { readAt: now },
