@@ -89,7 +89,14 @@ Pass a `kind` — every send is auto-logged to `email_log` and shown at
 `shell()`/`btn()` helpers). Emails can contain single-use action links
 (confirm/decline/leave/join/cancel_teetime/unsubscribe) minted by `lib/email-actions.ts`
 and consumed by `POST /api/email-actions/[action]` — tokens are hashed at
-rest and work without a login session.
+rest and work without a login session. `sendMail` takes an optional `replyTo`
+(only consumer today: user feedback, which sets it to the submitter).
+
+**User feedback**: `/feedback` (form) → `POST /api/feedback` saves a `Feedback`
+row and emails ALL admins (the `findMany({role:"ADMIN"})` + `Promise.allSettled`
+fan-out pattern, also in `complete-invite`/inbound) with Reply-To = submitter.
+The bug/idea/other set + validator + message cap live once in
+`lib/feedback-types.ts` (client-safe) — don't redefine them at call sites.
 
 **Real-time client**: `(app)/tee-times/auto-refresh.tsx` is an EventSource
 client that calls `router.refresh()` on every SSE event AND on every

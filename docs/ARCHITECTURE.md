@@ -25,12 +25,13 @@ react-hook-form · Tailwind · `@anthropic-ai/sdk` (weather blurbs).
 | `PasswordResetToken` | `password_reset_tokens` | doubles as the invite-completion token |
 | `EmailLog` | `email_log` | audit row per send (kind/status/error/attempts), written by the mailer |
 | `Notification` | `notifications` | in-app feed (the header bell); a persistent mirror of every nudge — `type`, `title`, `body`, `url` (`/tee-times/<id>`), `readAt`, `dismissedAt`. Written regardless of prefs (the "in case you missed it" channel); pruned hourly (read >30d, any >90d) |
+| `Feedback` | `feedback` | user feedback / feature requests — `type` (bug/idea/other), `message`, `userId`. Submitted at `/feedback`; emails all admins (Reply-To = submitter) + persists the row |
 
 ## Route map
 
 ### Pages
 - `(auth)`: `/login`, `/register` (static invite-only notice), `/forgot-password`, `/reset-password`, `/set-password` (invite completion)
-- `(app)` (middleware-gated): `/tee-times` (list + calendar + SSE auto-refresh + notification bell), `/tee-times/new`, `/tee-times/[id]` (roster, join/leave/confirm, weather, "what to expect"), `/tee-times/[id]/edit`, `/notifications` (full activity-feed history), `/profile` (push toggle, calendar feed, defaults, prefs), `/account`, `/admin` (users + invites), `/admin/emails` (send log)
+- `(app)` (middleware-gated): `/tee-times` (list + calendar + SSE auto-refresh + notification bell), `/tee-times/new`, `/tee-times/[id]` (roster, join/leave/confirm, weather, "what to expect"), `/tee-times/[id]/edit`, `/notifications` (full activity-feed history), `/feedback` (user feedback form), `/profile` (push toggle, calendar feed, defaults, prefs), `/account`, `/admin` (users + invites), `/admin/emails` (send log)
 - `/email-actions/[action]` + `/email-actions/result`: no-login landing pages for email links
 
 ### API (all return JSON; auth = session unless noted)
@@ -46,6 +47,7 @@ react-hook-form · Tailwind · `@anthropic-ai/sdk` (weather blurbs).
 - `POST /api/admin/broadcast/forwarding-howto` — admin-only one-off enhancement announcement (supports `testTo`/`dryRun`); respects `unsubscribedAll`
 - `/api/profile/*` — push subscription, calendar token rotation, defaults, notification prefs
 - `POST /api/notifications/read` (mark read, all or by ids) · `/dismiss` (soft-dismiss via `dismissedAt`) · `/action` (session-authed inline Confirm/Decline/Join/Leave — re-validates live `actionState`, 409s stale taps, calls the shared `tee-time-actions` cores). No `GET` — the bell is server-rendered from `getResolvedFeed` and refreshes via SSE
+- `POST /api/feedback` — user feedback (type bug/idea/other + message); saves a `Feedback` row + emails all admins with Reply-To = submitter (`kind: "feedback"`); types/validation/cap shared via `lib/feedback-types.ts`
 - `/api/guests`, `/api/users/search`, `/api/weather`
 
 ## lib/ inventory
@@ -56,7 +58,8 @@ react-hook-form · Tailwind · `@anthropic-ai/sdk` (weather blurbs).
 | `admin.ts` | `requireAdmin()` (redirects), `isAdmin()`, `isProtectedUserId()` |
 | `prisma.ts` | client singleton (globalThis guard for dev HMR) |
 | `events.ts` | `broadcastChange(teeTimeId?)`, `subscribeToChanges()` — in-process pub/sub backing SSE |
-| `mailer.ts` | `sendMail({to,subject,text,html,kind})` — THE email choke point: serialized queue (600ms gap, 3 retries) + `email_log` writes |
+| `mailer.ts` | `sendMail({to,subject,text,html,kind,replyTo?})` — THE email choke point: serialized queue (600ms gap, 3 retries) + `email_log` writes; optional `replyTo` (feedback sets it to the submitter) |
+| `feedback-types.ts` | single source for the feedback set (bug/idea/other) + label + `isFeedbackType` validator + message cap — shared by the form, API route, and email template (client-safe, no server-only) |
 | `email-templates.ts` | one function per email kind; shared `shell()`/`btn()` HTML helpers |
 | `email-actions.ts` | `mintToken`/`verifyToken`/`markUsed`/`buildActionUrl` for email link actions |
 | `tee-time-actions.ts` | `confirmMembership`/`declineOrLeaveMembership`/`joinTeeTime` — shared mutation cores (DB write + `broadcastChange` + `notify*`), called by BOTH the email-action route and the inline feed-action route so they behave identically |
