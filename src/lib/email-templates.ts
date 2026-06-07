@@ -1,4 +1,5 @@
 import "server-only";
+import { feedbackTypeLabel } from "@/lib/feedback-types";
 
 const APP_URL = process.env.AUTH_URL ?? "https://tee3golf.com";
 const APP_NAME = "Tee Time Tracker";
@@ -544,6 +545,38 @@ export function newUserJoinedAdminEmail(opts: {
   const html = shell(`
         <p style="margin:0 0 12px 0;"><strong>${newUserName}</strong> (${newUserEmail}) just finished setting up their ${APP_NAME} account.</p>
         ${btn("Manage users", `${APP_URL}/admin`)}
+`);
+
+  return { subject, text, html };
+}
+
+export function feedbackSubmittedAdminEmail(opts: {
+  submitterName: string;
+  submitterEmail: string;
+  type: string;
+  message: string;
+}) {
+  const { submitterName, submitterEmail, type, message } = opts;
+  const typeLabel = feedbackTypeLabel(type);
+  const subject = `Feedback (${typeLabel}) from ${submitterName}`;
+
+  const text =
+    `${submitterName} (${submitterEmail}) sent feedback.\n\n` +
+    `Type: ${typeLabel}\n\n` +
+    `${message}\n\n` +
+    `Reply to this email to respond to ${submitterName} directly.\n`;
+
+  const html = shell(`
+        <p style="margin:0 0 4px 0;"><strong>${escapeHtml(
+          submitterName
+        )}</strong> (${escapeHtml(submitterEmail)}) sent feedback.</p>
+        <p style="margin:0 0 12px 0;color:#555;">Type: <strong>${typeLabel}</strong></p>
+        <div style="margin:0 0 16px 0;padding:12px 14px;background:#f3f4f6;border-radius:8px;white-space:pre-wrap;">${escapeHtml(
+          message
+        )}</div>
+        <p style="margin:0;color:#555;font-size:13px;">Reply to this email to respond to ${escapeHtml(
+          submitterName
+        )} directly.</p>
 `);
 
   return { subject, text, html };
