@@ -44,7 +44,7 @@ react-hook-form · Tailwind · `@anthropic-ai/sdk` (weather blurbs).
 - `POST /api/cron/reminders` — `x-cron-secret` header auth; hit by systemd timer every 5 min
 - `POST /api/inbound/email` — Resend `email.received` webhook (svix-signature auth). Member resolved by `From:` (manual fwd) or forwarding headers (Gmail auto-fwd). Haiku classifies `email_kind`: confirmation → dedupe → tee time created as the forwarder; cancellation → email the member a choice (never auto-acts); Google forwarding-confirmation → relayed to the requesting member (onboarding)
 - `/api/admin/users/[id]` (+`/role`) — admin user management; protected-user guard in `lib/admin.ts`
-- `POST /api/admin/broadcast/forwarding-howto` — admin-only one-off enhancement announcement (supports `testTo`/`dryRun`); respects `unsubscribedAll`
+- `POST /api/admin/broadcast/forwarding-howto`, `POST /api/admin/broadcast/feedback-announcement` — admin-only one-off enhancement announcements (each supports `testTo`/`dryRun`); respect `unsubscribedAll`. Triggered by an authed admin POST (no UI); standard flow is dryRun → testTo self → real send
 - `/api/profile/*` — push subscription, calendar token rotation, defaults, notification prefs
 - `POST /api/notifications/read` (mark read, all or by ids) · `/dismiss` (soft-dismiss via `dismissedAt`) · `/action` (session-authed inline Confirm/Decline/Join/Leave — re-validates live `actionState`, 409s stale taps, calls the shared `tee-time-actions` cores). No `GET` — the bell is server-rendered from `getResolvedFeed` and refreshes via SSE
 - `POST /api/feedback` — user feedback (type bug/idea/other + message); saves a `Feedback` row + emails all admins with Reply-To = submitter (`kind: "feedback"`); types/validation/cap shared via `lib/feedback-types.ts`
