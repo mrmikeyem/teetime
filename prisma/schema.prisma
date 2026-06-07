@@ -55,6 +55,7 @@ model User {
   notificationPrefs   NotificationPreference?
   pushSubscriptions   PushSubscription[]
   notifications       Notification[]
+  feedback            Feedback[]
 
   @@map("users")
 }
@@ -89,6 +90,19 @@ model Notification {
 
   @@index([userId, createdAt])
   @@map("notifications")
+}
+
+model Feedback {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  type      String
+  message   String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+  @@map("feedback")
 }
 
 model NotificationPreference {

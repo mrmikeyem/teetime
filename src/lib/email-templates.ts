@@ -549,6 +549,44 @@ export function newUserJoinedAdminEmail(opts: {
   return { subject, text, html };
 }
 
+const FEEDBACK_TYPE_LABEL: Record<string, string> = {
+  bug: "Bug",
+  idea: "Idea",
+  other: "Other",
+};
+
+export function feedbackSubmittedAdminEmail(opts: {
+  submitterName: string;
+  submitterEmail: string;
+  type: string;
+  message: string;
+}) {
+  const { submitterName, submitterEmail, type, message } = opts;
+  const typeLabel = FEEDBACK_TYPE_LABEL[type] ?? "Feedback";
+  const subject = `Feedback (${typeLabel}) from ${submitterName}`;
+
+  const text =
+    `${submitterName} (${submitterEmail}) sent feedback.\n\n` +
+    `Type: ${typeLabel}\n\n` +
+    `${message}\n\n` +
+    `Reply to this email to respond to ${submitterName} directly.\n`;
+
+  const html = shell(`
+        <p style="margin:0 0 4px 0;"><strong>${escapeHtml(
+          submitterName
+        )}</strong> (${escapeHtml(submitterEmail)}) sent feedback.</p>
+        <p style="margin:0 0 12px 0;color:#555;">Type: <strong>${typeLabel}</strong></p>
+        <div style="margin:0 0 16px 0;padding:12px 14px;background:#f3f4f6;border-radius:8px;white-space:pre-wrap;">${escapeHtml(
+          message
+        )}</div>
+        <p style="margin:0;color:#555;font-size:13px;">Reply to this email to respond to ${escapeHtml(
+          submitterName
+        )} directly.</p>
+`);
+
+  return { subject, text, html };
+}
+
 // --- Inbound email (forwarded booking confirmation) replies -----------------
 
 export function inboundCreatedEmail(opts: {

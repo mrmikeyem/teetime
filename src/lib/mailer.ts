@@ -9,6 +9,8 @@ type SendMailArgs = {
   html?: string;
   /** Category shown in the admin email log (e.g. "reminder", "invite"). */
   kind?: string;
+  /** Optional Reply-To header (e.g. feedback → reply goes to the submitter). */
+  replyTo?: string;
 };
 
 // Best-effort audit trail for the admin email log — logging must never
@@ -62,11 +64,13 @@ export async function sendMail({
   text,
   html,
   kind = "other",
+  replyTo,
 }: SendMailArgs) {
   if (!transport) {
     console.log("\n[mailer:dev] SMTP_HOST not set — would have sent:");
     console.log(`  To:      ${to}`);
     console.log(`  From:    ${from}`);
+    if (replyTo) console.log(`  ReplyTo: ${replyTo}`);
     console.log(`  Subject: ${subject}`);
     console.log(`  Body:\n${text.replace(/^/gm, "    ")}\n`);
     return;
@@ -77,7 +81,7 @@ export async function sendMail({
       const wait = lastSendAt + MIN_SEND_GAP_MS - Date.now();
       if (wait > 0) await sleep(wait);
       try {
-        await transport.sendMail({ from, to, subject, text, html });
+        await transport.sendMail({ from, to, subject, text, html, replyTo });
         await logEmail({ to, subject, kind, status: "SENT", attempts: attempt });
         return;
       } catch (err) {
