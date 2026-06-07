@@ -809,3 +809,35 @@ export function forwardingHowToEmail(opts: {
 
   return { subject, text, html };
 }
+
+// --- Enhancement announcement: in-app feedback ------------------------------
+
+export function feedbackAnnouncementEmail(opts: {
+  name: string;
+  appUrl: string;
+  unsubscribeUrl: string;
+}) {
+  const { name, appUrl, unsubscribeUrl } = opts;
+  const feedbackUrl = `${appUrl}/feedback`;
+  const subject = `New: send us feedback right from the app`;
+
+  const text =
+    `Hi ${name},\n\n` +
+    `Small upgrade: there's now a Feedback button in the app. Found a bug, ` +
+    `got an idea, or just want to tell us something? Tap "Feedback" in the ` +
+    `top bar, pick Bug / Idea / Other, and type away — it comes straight to us.\n\n` +
+    `We read every one, and we'll reply by email if we need more detail.\n\n` +
+    `Send feedback: ${feedbackUrl}\n`;
+
+  const html = shell(
+    `
+        <p style="margin:0 0 12px 0;">Hi ${escapeHtml(name)},</p>
+        <p style="margin:0 0 16px 0;">Small upgrade: there's now a <strong>Feedback</strong> button in the app. Found a bug, got an idea, or just want to tell us something?</p>
+        <p style="margin:0 0 16px 0;">Tap <strong>Feedback</strong> in the top bar, pick <em>Bug</em>, <em>Idea</em>, or <em>Other</em>, and type away — it comes straight to us. We read every one, and we'll reply by email if we need more detail.</p>
+        ${btn("Send feedback", feedbackUrl)}
+`,
+    { unsubscribeUrl }
+  );
+
+  return { subject, text, html };
+}
