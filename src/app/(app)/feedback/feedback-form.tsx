@@ -1,16 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import {
+  FEEDBACK_TYPES,
+  FEEDBACK_MAX_MESSAGE_LEN as MAX,
+  type FeedbackType,
+} from "@/lib/feedback-types";
 
-type FeedbackType = "bug" | "idea" | "other";
-
-const TYPES: { value: FeedbackType; label: string; hint: string }[] = [
-  { value: "bug", label: "Bug", hint: "Something's broken" },
-  { value: "idea", label: "Idea", hint: "A feature or improvement" },
-  { value: "other", label: "Other", hint: "Anything else" },
-];
-
-const MAX = 4000;
+const TYPES = FEEDBACK_TYPES;
 
 export function FeedbackForm() {
   const [type, setType] = useState<FeedbackType>("idea");

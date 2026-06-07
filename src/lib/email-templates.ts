@@ -1,4 +1,5 @@
 import "server-only";
+import { feedbackTypeLabel } from "@/lib/feedback-types";
 
 const APP_URL = process.env.AUTH_URL ?? "https://tee3golf.com";
 const APP_NAME = "Tee Time Tracker";
@@ -549,12 +550,6 @@ export function newUserJoinedAdminEmail(opts: {
   return { subject, text, html };
 }
 
-const FEEDBACK_TYPE_LABEL: Record<string, string> = {
-  bug: "Bug",
-  idea: "Idea",
-  other: "Other",
-};
-
 export function feedbackSubmittedAdminEmail(opts: {
   submitterName: string;
   submitterEmail: string;
@@ -562,7 +557,7 @@ export function feedbackSubmittedAdminEmail(opts: {
   message: string;
 }) {
   const { submitterName, submitterEmail, type, message } = opts;
-  const typeLabel = FEEDBACK_TYPE_LABEL[type] ?? "Feedback";
+  const typeLabel = feedbackTypeLabel(type);
   const subject = `Feedback (${typeLabel}) from ${submitterName}`;
 
   const text =

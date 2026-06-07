@@ -3,9 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendMail } from "@/lib/mailer";
 import { feedbackSubmittedAdminEmail } from "@/lib/email-templates";
-
-const VALID_TYPES: ReadonlySet<string> = new Set(["bug", "idea", "other"]);
-const MAX_MESSAGE_LEN = 4000;
+import { isFeedbackType, FEEDBACK_MAX_MESSAGE_LEN } from "@/lib/feedback-types";
 
 /**
  * User feedback / feature requests. Session-authed. Saves a Feedback row and
@@ -29,7 +27,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
 
-  if (typeof type !== "string" || !VALID_TYPES.has(type)) {
+  if (!isFeedbackType(type)) {
     return NextResponse.json(
       { error: "type must be one of bug, idea, other" },
       { status: 400 }
@@ -42,9 +40,11 @@ export async function POST(req: Request) {
       { status: 400 }
     );
   }
-  if (text.length > MAX_MESSAGE_LEN) {
+  if (text.length > FEEDBACK_MAX_MESSAGE_LEN) {
     return NextResponse.json(
-      { error: `Message is too long (max ${MAX_MESSAGE_LEN} characters).` },
+      {
+        error: `Message is too long (max ${FEEDBACK_MAX_MESSAGE_LEN} characters).`,
+      },
       { status: 400 }
     );
   }
@@ -75,11 +75,20 @@ export async function POST(req: Request) {
   // Reply-To only when we have a real submitter address.
   const replyTo = submitter?.email ?? undefined;
 
-  await Promise.allSettled(
-    admins
-      .map((a) => a.email)
-      .filter((email): email is string => !!email)
-      .map((email) =>
+  const adminEmails = admins
+    .map((a) => a.email)
+    .filter((email): email is string => !!email);
+
+  // The Feedback row is the source of truth, so the user still succeeds even
+  // if no admin can be emailed — but that's an operational problem worth a
+  // server-side warning (it should never happen in prod: 2 admins with email).
+  if (adminEmails.length === 0) {
+    console.error(
+      "[feedback] saved a Feedback row but NO admin has an email to notify"
+    );
+  } else {
+    const results = await Promise.allSettled(
+      adminEmails.map((email) =>
         sendMail({
           to: email,
           subject,
@@ -89,7 +98,18 @@ export async function POST(req: Request) {
           replyTo,
         })
       )
-  );
+    );
+    const failed = results.filter((r) => r.status === "rejected").length;
+    if (failed === adminEmails.length) {
+      console.error(
+        `[feedback] all ${failed} admin notification email(s) failed to send`
+      );
+    } else if (failed > 0) {
+      console.error(
+        `[feedback] ${failed}/${adminEmails.length} admin notification email(s) failed`
+      );
+    }
+  }
 
   return NextResponse.json({ ok: true });
 }
