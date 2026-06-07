@@ -31,7 +31,7 @@ react-hook-form · Tailwind · `@anthropic-ai/sdk` (weather blurbs).
 
 ### Pages
 - `(auth)`: `/login`, `/register` (static invite-only notice), `/forgot-password`, `/reset-password`, `/set-password` (invite completion)
-- `(app)` (middleware-gated): `/tee-times` (list + calendar + SSE auto-refresh + notification bell), `/tee-times/new`, `/tee-times/[id]` (roster, join/leave/confirm, weather, "what to expect"), `/tee-times/[id]/edit`, `/notifications` (full activity-feed history), `/feedback` (user feedback form), `/profile` (push toggle, calendar feed, defaults, prefs), `/account`, `/admin` (users + invites), `/admin/emails` (send log)
+- `(app)` (middleware-gated): `/tee-times` (list + calendar + SSE auto-refresh + notification bell), `/tee-times/new`, `/tee-times/[id]` (roster, join/leave/confirm, weather, "what to expect"), `/tee-times/[id]/edit`, `/notifications` (full activity-feed history), `/feedback` (user feedback form), `/profile` (push toggle, calendar feed, defaults, prefs), `/account`, `/admin` (users + invites), `/admin/emails` (send log), `/admin/feedback` (submitted feedback, type-filterable)
 - `/email-actions/[action]` + `/email-actions/result`: no-login landing pages for email links
 
 ### API (all return JSON; auth = session unless noted)
