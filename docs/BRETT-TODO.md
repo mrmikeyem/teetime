@@ -9,6 +9,50 @@ Companion to `docs/ROADMAP.md`.
 
 ## Open
 
+- **Local dev environment setup.** Currently no `.env.local`, so
+  `npm run dev` immediately fails with next-auth `MissingSecret` and
+  cascades into `session.user.id` crashes on `/tee-times`. Need at
+  minimum:
+  - `AUTH_SECRET` — any random 32-byte string locally
+    (`openssl rand -base64 32`)
+  - `DATABASE_URL` — local Postgres, or prod URL for read-only
+  - `ANTHROPIC_API_KEY` — dev key from console.anthropic.com (otherwise
+    `summarizeRound` short-circuits and the "What to expect" blurb
+    silently never appears)
+  - Anything else CLAUDE.md / INFRA.md require
+  Unblocks the "smoke test locally before pushing" step in
+  CONTRIBUTING.md for every future PR. Do this before the next change
+  that needs actual UI verification.
+
+- **GitHub Actions auto-deploy on push to main.** Currently every
+  deploy is a manual SSH + `./deploy.sh` on the droplet, which means
+  any PR sits "merged but not live" until Brett's at a machine with
+  the deploy key. Add a `.github/workflows/deploy.yml` that on push
+  to `main`: SSHes to the droplet using a repo deploy key (stored as
+  a GitHub Actions secret), runs `./deploy.sh`, and surfaces failures
+  back to the run log. ~30 lines of YAML. Removes the SSH-from-this-
+  machine friction entirely. Worth a dedicated `chore/auto-deploy` PR.
+
+- **Cache the Claude "what to expect" blurb (~30 min).** Today the
+  Open-Meteo forecast fetch in `getRoundForecast` is cached 30 min via
+  `next: { revalidate: 60 * 30 }`, but `summarizeRound` hits Anthropic
+  Haiku on every single page render — each tee-time view = one paid LLM
+  call even when the forecast underneath hasn't changed. Wrap the
+  blurb generation in something that keys on
+  `(teeTimeId or coords+teeOffAt, forecastSnapshotHash)` and reuses the
+  result for ~30 min (or until the underlying forecast revalidates).
+  Wins: cost drop + faster page renders + stable blurb wording across
+  refreshes (no more LLM-nondeterminism drift). Probably uses
+  `unstable_cache` from `next/cache`, or a small in-memory Map keyed by
+  tee-time id with a TTL.
+
+- **Pre-existing lint cleanup.** `npm run lint` reports 10 issues on
+  `main` (unescaped quotes in 2 files, React purity violations in
+  `tee-times/[id]/page.tsx`, setState-in-effect in `countdown.tsx` and
+  `member-picker.tsx`, unused var in `sw.js`). Deploy doesn't gate on
+  lint, so they've been accumulating. Knock out in a focused
+  `chore/lint-cleanup` PR.
+
 - **Google login integration.** Add Google as a next-auth provider
   alongside the existing credentials flow, for easier sign-in and longer
   sustained sessions. Decide how Google identity links to the existing
