@@ -33,18 +33,39 @@ Companion to `docs/ROADMAP.md`.
   back to the run log. ~30 lines of YAML. Removes the SSH-from-this-
   machine friction entirely. Worth a dedicated `chore/auto-deploy` PR.
 
-- **Cache the Claude "what to expect" blurb (~30 min).** Today the
-  Open-Meteo forecast fetch in `getRoundForecast` is cached 30 min via
-  `next: { revalidate: 60 * 30 }`, but `summarizeRound` hits Anthropic
-  Haiku on every single page render — each tee-time view = one paid LLM
-  call even when the forecast underneath hasn't changed. Wrap the
-  blurb generation in something that keys on
-  `(teeTimeId or coords+teeOffAt, forecastSnapshotHash)` and reuses the
-  result for ~30 min (or until the underlying forecast revalidates).
-  Wins: cost drop + faster page renders + stable blurb wording across
-  refreshes (no more LLM-nondeterminism drift). Probably uses
-  `unstable_cache` from `next/cache`, or a small in-memory Map keyed by
-  tee-time id with a TTL.
+- **Cache the Claude "what to expect" blurb on a sliding-scale TTL +
+  manual refresh.** Today the Open-Meteo forecast fetch in
+  `getRoundForecast` is cached 30 min via `next: { revalidate }`, but
+  `summarizeRound` hits Anthropic Haiku on every single page render —
+  each tee-time view = one paid LLM call even when the forecast under-
+  neath hasn't changed.
+
+  Caching design: TTL slides based on how far out the tee-off is, since
+  far-out forecasts barely change hour-to-hour but day-of can shift
+  fast.
+  - **≥7 days out**: cache 24h. (First view costs an Anthropic call;
+    re-views for the rest of the day are free.)
+  - **3-7 days out**: cache ~6h. (Tunable.)
+  - **1-3 days out**: cache 1h.
+  - **≤24h out**: cache 30 min. (Matches the underlying Open-Meteo
+    revalidation window — the inputs literally can't change faster.)
+  - **In-progress / past tee-off**: don't cache aggressively; weather
+    is settled.
+
+  UX: show the cache age next to the blurb ("Updated 14 min ago"). If
+  the entry is older than ~30 min, show a small "Refresh forecast"
+  button that forces a fresh Open-Meteo fetch + Claude call. Cheap
+  escape hatch when conditions are changing fast.
+
+  Keying: `(teeTimeId, forecastSnapshotHash)` so an edit to the
+  tee-time's tee-off time naturally invalidates. Implementation likely
+  `unstable_cache` from `next/cache` with a dynamic `revalidate`, or a
+  small DB table keyed by tee-time id with TTL + a `regeneratedAt`
+  column for the staleness indicator.
+
+  Wins: cost drop, faster renders, stable blurb wording across
+  refreshes (no more LLM-nondeterminism drift), AND control when it
+  matters.
 
 - **Pre-existing lint cleanup.** `npm run lint` reports 10 issues on
   `main` (unescaped quotes in 2 files, React purity violations in
