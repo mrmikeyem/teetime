@@ -9,19 +9,20 @@ tournaments / leagues / closures.
 - Format: this file is the manual-entry seed; eventually a `CourseEvent`
   Prisma model can be hydrated from it.
 
-## Source anomalies (flag for Brett to verify)
+## Source anomalies — resolved
 
-Four weekday/date mismatches found while transcribing. Could be source
-typos (calendar reused from a previous year without updating the day
-names). Recorded the **date** verbatim and noted the conflict; weekday
-column reflects the actual 2026 weekday, not the source's label.
+Four weekday/date mismatches found while transcribing. Source appears
+to have been copied from the 2025 calendar without updating individual
+dates for 2026 (verified: 2025-09-28 was a Sunday, 2025-10-18 was a
+Saturday — matches the source weekday labels). Resolved with Brett
+2026-06-11:
 
-| Source label              | Actual 2026 weekday | Notes |
-|---------------------------|---------------------|-------|
-| "Monday, August 11: FCA Golf Classic" | Tuesday   | Also a duplicate of Aug 10's FCA Golf Classic (same time, same event) — almost certainly a typo. Recommend removing one. |
-| "Wednesday, September 24" | Thursday            | KW Senior Open |
-| "Sunday, September 28"    | Monday              | EDC Girls Tournament |
-| "Saturday, October 18"    | Sunday              | Polar Bear 4-Person Scramble |
+| Source label                            | Resolution                                    |
+|-----------------------------------------|-----------------------------------------------|
+| "Monday, August 11: FCA Golf Classic"   | Dropped — duplicate of Aug 10. Kept Aug 10 only. |
+| "Wednesday, September 24" (KW Senior Open) | Date correct (most tourneys are Thursdays); weekday corrected to Thursday. |
+| "Sunday, September 28" (EDC Girls)      | Held the **Sunday** (matches 2025 template); date corrected to **Sep 27, 2026**. |
+| "Saturday, October 18" (Polar Bear)     | Held the **Saturday** (matches 2025 template); date corrected to **Oct 17, 2026**. |
 
 ## Events
 
@@ -66,7 +67,7 @@ Impact column:
 | 2026-07-27   | Mon | 12:00 pm        | Grand Forks HS Coaches Golf Scramble                       | tournament  | |
 | 2026-07-30   | Thu | 9:00 am scramble | Airport GFK                                               | tournament  | |
 | 2026-08-07   | Fri | 5:30 pm shotgun | Couples Event #3                                           | shotgun     | |
-| 2026-08-10   | Mon | 12:30 pm        | FCA Golf Classic                                           | tournament  | See anomalies — duplicated as "Aug 11" in source |
+| 2026-08-10   | Mon | 12:30 pm        | FCA Golf Classic                                           | tournament  | Aug 11 dupe in source dropped |
 | 2026-08-13   | Thu | —               | ND AG & Shriners Golf Events                               | tournament  | |
 | 2026-08-15   | Sat | —               | All City Golf Tournament (day 1)                           | tournament  | |
 | 2026-08-16   | Sun | —               | All City Golf Tournament (day 2)                           | tournament  | |
@@ -80,10 +81,10 @@ Impact column:
 | 2026-09-17   | Thu | 11:00 am        | Oxford Realty Golf Outing                                  | tournament  | |
 | 2026-09-19   | Sat | —               | Fall Classic Best Ball Tournament (day 1)                  | tournament  | |
 | 2026-09-20   | Sun | —               | Fall Classic Best Ball Tournament (day 2)                  | tournament  | |
-| 2026-09-24   | Thu | 9:30 am shotgun | KW Senior Open                                             | shotgun     | Source labeled Wednesday — flagged in anomalies |
-| 2026-09-28   | Mon | —               | EDC Girls Tournament                                       | tournament  | Source labeled Sunday — flagged in anomalies |
+| 2026-09-24   | Thu | 9:30 am shotgun | KW Senior Open                                             | shotgun     | Source labeled Wednesday; corrected to Thursday |
+| 2026-09-27   | Sun | —               | EDC Girls Tournament                                       | tournament  | Source said "Sunday, Sep 28"; moved to Sep 27 to keep the Sunday |
 | 2026-10-04   | Sun | 9:00 am shotgun | Fall 1-Person Scramble                                     | shotgun     | |
-| 2026-10-18   | Sun | 10:00 am        | Polar Bear 4-Person Scramble                               | tournament  | Source labeled Saturday — flagged in anomalies |
+| 2026-10-17   | Sat | 10:00 am        | Polar Bear 4-Person Scramble                               | tournament  | Source said "Saturday, Oct 18"; moved to Oct 17 to keep the Saturday |
 
 ## Open questions for Brett
 
@@ -91,11 +92,6 @@ Impact column:
   "JV at Lincoln" — does that mean the JV team plays at Lincoln Park
   (so KW is unaffected), or that the meet is hosted at KW with JV at
   Lincoln? Clarify before the planner uses these.
-- **FCA Golf Classic** — confirm it's only on Aug 10 and the Aug 11
-  entry is a duplicate typo.
-- Verify **KW Senior Open** is Thu Sep 24 (not Wed as the source said).
-- Verify **EDC Girls Tournament** is Mon Sep 28 (not Sun).
-- Verify **Polar Bear Scramble** is Sun Oct 18 (not Sat).
 - **Recurring leagues** (Monday Men's Club, Thursday Match League,
   Tuesday Ladies League, Tuesday Lessons): need their end dates and
   weekly time slots before the planner can correctly show them as
