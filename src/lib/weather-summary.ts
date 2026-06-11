@@ -20,11 +20,32 @@ export type RoundForecast = {
   hours: HourlyPoint[];
   sunsetUtcIso: string | null;
   past24hPrecipIn: number;
+  expectedRoundHours: number;
+  expectedHoles: number;
 };
 
-const SYSTEM_PROMPT = `You write a "what to expect" paragraph for a casual men's golf group in North Dakota about their upcoming 4-hour round.
+const MAX_ROUND_HOURS = 4;
 
-Input: hourly forecast for tee-off and the next 3 hours, plus sunset time, past-24h rainfall, and severe-weather alerts.
+function estimateRoundHours(
+  teeOffAt: Date,
+  sunsetUtcIso: string | null
+): number {
+  if (!sunsetUtcIso) return MAX_ROUND_HOURS;
+  const sunsetMs = new Date(`${sunsetUtcIso}Z`).getTime();
+  const hoursUntilSunset =
+    (sunsetMs - teeOffAt.getTime()) / (60 * 60 * 1000);
+  if (hoursUntilSunset <= 0) return 1;
+  return Math.max(1, Math.min(MAX_ROUND_HOURS, Math.ceil(hoursUntilSunset)));
+}
+
+function estimateHoles(roundHours: number): number {
+  // ~13 min/hole baseline (4h = 18 holes for a casual group with carts).
+  return Math.max(3, Math.round(roundHours * 4.5));
+}
+
+const SYSTEM_PROMPT = `You write a "what to expect" paragraph for a casual men's golf group in North Dakota about their upcoming round.
+
+Input: hourly forecast covering the expected playable window (tee-off through sunset, capped at 4 hours), an estimate of how many holes will realistically be played, sunset time, past-24h rainfall, and severe-weather alerts.
 
 Output: ONE short paragraph (3-5 sentences, ~80 words max) covering the practical things — weather across the round, what to wear or bring, ground conditions, wind impact on play, daylight runway, and any heads-up like bugs or severe weather. Connect the factors when it's natural: "dry + light wind = ball will roll" beats stating them separately.
 
@@ -33,6 +54,7 @@ Rules:
 - Don't invent course-specific knowledge. You don't know the layout. Talk about general effects of wind direction and ground conditions, not specific holes.
 - Don't recommend a layer or jacket when temperatures stay above 70°F, unless wind/humidity make it feel meaningfully colder.
 - Only mention dusk or daylight if the round's last hour falls within 30 minutes of sunset. Otherwise skip it.
+- Match the advice to the expected round length and hole count. For a 9-hole evening round don't warn about conditions 4 hours out — only about what happens during the actual playable window.
 - Always produce a paragraph, even when conditions are mild and uneventful. A bland round still benefits from a one-line "comfortable mid-70s the whole way" confirmation.
 - Skip filler phrases like "dress comfortably" or "enjoy your round." Be useful, not generic.
 - No greetings, no sign-offs, no emojis. Plain prose, casual tone.
@@ -153,8 +175,26 @@ export async function getRoundForecast(
   }
   if (startIdx < 0) return null;
 
+  // Sunset on tee-off day (UTC). Needed before the forecast loop so we
+  // can clamp how many hourly points we pull to the realistic playable
+  // window (avoids the "warning about 9:30pm cold during a 6:30pm round"
+  // case when sunset cuts the round short).
+  let sunsetUtcIso: string | null = null;
+  const teeOffDayUtc = target.toISOString().slice(0, 10);
+  if (data.daily) {
+    for (let i = 0; i < data.daily.time.length; i++) {
+      if (data.daily.time[i] === teeOffDayUtc) {
+        sunsetUtcIso = data.daily.sunset[i] ?? null;
+        break;
+      }
+    }
+  }
+
+  const expectedRoundHours = estimateRoundHours(teeOffAt, sunsetUtcIso);
+  const expectedHoles = estimateHoles(expectedRoundHours);
+
   const points: HourlyPoint[] = [];
-  for (let offset = 0; offset < 4; offset++) {
+  for (let offset = 0; offset < expectedRoundHours; offset++) {
     const i = startIdx + offset;
     if (i >= hourly.time.length) break;
     points.push({
@@ -183,19 +223,14 @@ export async function getRoundForecast(
   }
   past24hPrecipIn = Math.round(past24hPrecipIn * 100) / 100;
 
-  // Sunset on tee-off day (UTC).
-  let sunsetUtcIso: string | null = null;
-  const teeOffDayUtc = target.toISOString().slice(0, 10);
-  if (data.daily) {
-    for (let i = 0; i < data.daily.time.length; i++) {
-      if (data.daily.time[i] === teeOffDayUtc) {
-        sunsetUtcIso = data.daily.sunset[i] ?? null;
-        break;
-      }
-    }
-  }
-
-  return { teeOff: points[0], hours: points, sunsetUtcIso, past24hPrecipIn };
+  return {
+    teeOff: points[0],
+    hours: points,
+    sunsetUtcIso,
+    past24hPrecipIn,
+    expectedRoundHours,
+    expectedHoles,
+  };
 }
 
 function formatUserMessage(forecast: RoundForecast): string {
@@ -214,6 +249,9 @@ function formatUserMessage(forecast: RoundForecast): string {
   if (sunsetCt) {
     lines.push(`Sunset:  ${sunsetCt} CDT`);
   }
+  lines.push(
+    `Expected round: ~${forecast.expectedRoundHours}h (~${forecast.expectedHoles} holes — capped at sunset)`
+  );
   lines.push("");
 
   for (const h of forecast.hours) {
