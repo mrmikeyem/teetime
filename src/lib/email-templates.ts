@@ -841,3 +841,43 @@ export function feedbackAnnouncementEmail(opts: {
 
   return { subject, text, html };
 }
+
+export function teamsAnnouncementEmail(opts: {
+  name: string;
+  appUrl: string;
+  unsubscribeUrl: string;
+}) {
+  const { name, appUrl, unsubscribeUrl } = opts;
+  const teamsUrl = `${appUrl}/teams`;
+  const subject = `New: team generator for tournament days`;
+
+  const text =
+    `Hi ${name},\n\n` +
+    `Just in time for the tournaments coming up: there's now a Teams button ` +
+    `in the app. Pick who's playing (guests too — just type their names), ` +
+    `then shake out teams three ways:\n\n` +
+    `- Random — everyone into the hat.\n` +
+    `- Balanced — enter handicaps and it evens out the teams.\n` +
+    `- Captains — mark the captains and draw the rest onto their teams.\n\n` +
+    `Re-roll until it looks right, then hit copy and paste the teams into ` +
+    `the group chat. Nothing is saved — it's a quick draw tool for the ` +
+    `parking lot.\n\n` +
+    `Generate teams: ${teamsUrl}\n`;
+
+  const html = shell(
+    `
+        <p style="margin:0 0 12px 0;">Hi ${escapeHtml(name)},</p>
+        <p style="margin:0 0 16px 0;">Just in time for the tournaments coming up: there's now a <strong>Teams</strong> button in the app. Pick who's playing (guests too — just type their names), then shake out teams three ways:</p>
+        <ul style="margin:0 0 16px 0;padding-left:20px;">
+          <li style="margin:0 0 6px 0;"><strong>Random</strong> — everyone into the hat.</li>
+          <li style="margin:0 0 6px 0;"><strong>Balanced</strong> — enter handicaps and it evens out the teams.</li>
+          <li style="margin:0;"><strong>Captains</strong> — mark the captains and draw the rest onto their teams.</li>
+        </ul>
+        <p style="margin:0 0 16px 0;">Re-roll until it looks right, then hit copy and paste the teams into the group chat. Nothing is saved — it's a quick draw tool for the parking lot.</p>
+        ${btn("Generate teams", teamsUrl)}
+`,
+    { unsubscribeUrl }
+  );
+
+  return { subject, text, html };
+}
