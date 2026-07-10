@@ -8,5 +8,6 @@ export const config = {
     "/profile/:path*",
     "/notifications/:path*",
     "/feedback/:path*",
+    "/teams/:path*",
   ],
 };
