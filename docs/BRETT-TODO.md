@@ -9,6 +9,71 @@ Companion to `docs/ROADMAP.md`.
 
 ## Open
 
+- **Local dev environment setup.** Currently no `.env.local`, so
+  `npm run dev` immediately fails with next-auth `MissingSecret` and
+  cascades into `session.user.id` crashes on `/tee-times`. Need at
+  minimum:
+  - `AUTH_SECRET` — any random 32-byte string locally
+    (`openssl rand -base64 32`)
+  - `DATABASE_URL` — local Postgres, or prod URL for read-only
+  - `ANTHROPIC_API_KEY` — dev key from console.anthropic.com (otherwise
+    `summarizeRound` short-circuits and the "What to expect" blurb
+    silently never appears)
+  - Anything else CLAUDE.md / INFRA.md require
+  Unblocks the "smoke test locally before pushing" step in
+  CONTRIBUTING.md for every future PR. Do this before the next change
+  that needs actual UI verification.
+
+- **GitHub Actions auto-deploy on push to main.** Currently every
+  deploy is a manual SSH + `./deploy.sh` on the droplet, which means
+  any PR sits "merged but not live" until Brett's at a machine with
+  the deploy key. Add a `.github/workflows/deploy.yml` that on push
+  to `main`: SSHes to the droplet using a repo deploy key (stored as
+  a GitHub Actions secret), runs `./deploy.sh`, and surfaces failures
+  back to the run log. ~30 lines of YAML. Removes the SSH-from-this-
+  machine friction entirely. Worth a dedicated `chore/auto-deploy` PR.
+
+- **Cache the Claude "what to expect" blurb on a sliding-scale TTL +
+  manual refresh.** Today the Open-Meteo forecast fetch in
+  `getRoundForecast` is cached 30 min via `next: { revalidate }`, but
+  `summarizeRound` hits Anthropic Haiku on every single page render —
+  each tee-time view = one paid LLM call even when the forecast under-
+  neath hasn't changed.
+
+  Caching design: TTL slides based on how far out the tee-off is, since
+  far-out forecasts barely change hour-to-hour but day-of can shift
+  fast.
+  - **≥7 days out**: cache 24h. (First view costs an Anthropic call;
+    re-views for the rest of the day are free.)
+  - **3-7 days out**: cache ~6h. (Tunable.)
+  - **1-3 days out**: cache 1h.
+  - **≤24h out**: cache 30 min. (Matches the underlying Open-Meteo
+    revalidation window — the inputs literally can't change faster.)
+  - **In-progress / past tee-off**: don't cache aggressively; weather
+    is settled.
+
+  UX: show the cache age next to the blurb ("Updated 14 min ago"). If
+  the entry is older than ~30 min, show a small "Refresh forecast"
+  button that forces a fresh Open-Meteo fetch + Claude call. Cheap
+  escape hatch when conditions are changing fast.
+
+  Keying: `(teeTimeId, forecastSnapshotHash)` so an edit to the
+  tee-time's tee-off time naturally invalidates. Implementation likely
+  `unstable_cache` from `next/cache` with a dynamic `revalidate`, or a
+  small DB table keyed by tee-time id with TTL + a `regeneratedAt`
+  column for the staleness indicator.
+
+  Wins: cost drop, faster renders, stable blurb wording across
+  refreshes (no more LLM-nondeterminism drift), AND control when it
+  matters.
+
+- **Pre-existing lint cleanup.** `npm run lint` reports 10 issues on
+  `main` (unescaped quotes in 2 files, React purity violations in
+  `tee-times/[id]/page.tsx`, setState-in-effect in `countdown.tsx` and
+  `member-picker.tsx`, unused var in `sw.js`). Deploy doesn't gate on
+  lint, so they've been accumulating. Knock out in a focused
+  `chore/lint-cleanup` PR.
+
 - **Google login integration.** Add Google as a next-auth provider
   alongside the existing credentials flow, for easier sign-in and longer
   sustained sessions. Decide how Google identity links to the existing
