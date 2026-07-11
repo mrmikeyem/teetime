@@ -1,0 +1,40 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+# Two quick merges queue instead of deploying on top of each other.
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run deploy.sh on the droplet
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        # The key is pinned to a forced command in authorized_keys — the
+        # droplet runs /opt/teetimes/deploy.sh no matter what is requested
+        # here, and the key can do nothing else.
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o BatchMode=yes \
+            root@24.199.102.162 deploy
+
+      - name: Health check
+        run: |
+          for i in 1 2 3 4 5 6; do
+            sleep 5
+            code=$(curl -s -o /dev/null -w "%{http_code}" https://tee3golf.com/login)
+            echo "attempt $i: /login -> $code"
+            [ "$code" = "200" ] && exit 0
+          done
+          echo "Health check failed — site is not serving 200 after deploy"
+          exit 1

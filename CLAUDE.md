@@ -18,6 +18,8 @@ npm run build        # production build — MUST exit 0 before any restart
 npm run lint         # eslint
 npm run db:migrate   # prisma migrate dev (creates + applies a migration)
 ./deploy.sh          # prod deploy: pull → ci → migrate deploy → build → restart
+                     # (auto-runs via GitHub Actions on every push to main —
+                     #  merging to main IS deploying; script is the manual fallback)
 ```
 
 There is no test framework configured. Verification is manual — see

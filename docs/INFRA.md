@@ -32,6 +32,19 @@ Everything above survives reboot with zero manual steps. Logs:
 
 ## Deploying
 
+**Auto-deploy (normal path):** every push to `main` triggers
+`.github/workflows/deploy.yml`, which SSHes to the droplet and runs
+`./deploy.sh`, then health-checks `https://tee3golf.com/login`. Watch the
+run in GitHub Actions; a red ✗ means prod may be stale (or, if the deploy
+step itself failed mid-restart, unhealthy — check the run log). The CI key
+is `teetimes-ci-deploy` in `/root/.ssh/authorized_keys`, pinned with
+`restrict,command="/opt/teetimes/deploy.sh"` so it cannot open a shell or
+run anything else. Secrets live in the repo's Actions secrets
+(`DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS`). Consequence: **merging to main
+IS deploying** — don't merge what you don't want live.
+
+**Manual fallback** (CI down, or rerunning after a fix):
+
 ```sh
 cd /opt/teetimes && ./deploy.sh
 ```
