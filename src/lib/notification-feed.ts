@@ -16,7 +16,8 @@ export type FeedType =
   | "joined"
   | "left"
   | "newTeeTime"
-  | "reminder";
+  | "reminder"
+  | "announcement";
 
 /**
  * Record one in-app notification for one user. Fire-and-forget from the
@@ -200,7 +201,8 @@ function resolveActionState(
   byId: Map<string, TeeTimeLite>
 ): ActionState {
   // Informational types never carry an action.
-  if (type === "joined" || type === "left") return "none";
+  if (type === "joined" || type === "left" || type === "announcement")
+    return "none";
   if (!teeTimeId) return "none";
 
   const tt = byId.get(teeTimeId);

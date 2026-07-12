@@ -842,6 +842,41 @@ export function feedbackAnnouncementEmail(opts: {
   return { subject, text, html };
 }
 
+// Generic template for announcements created at /admin/announcements —
+// future one-off feature emails go through this instead of a bespoke
+// template + broadcast route per feature.
+export function announcementEmail(opts: {
+  name: string;
+  title: string;
+  body: string;
+  linkUrl: string | null;
+  appUrl: string;
+  unsubscribeUrl: string;
+}) {
+  const { name, title, body, linkUrl, appUrl, unsubscribeUrl } = opts;
+  const subject = `New: ${title}`;
+  const whatsNewUrl = `${appUrl}/whats-new`;
+
+  const text =
+    `Hi ${name},\n\n` +
+    `${body}\n\n` +
+    (linkUrl ? `Check it out: ${appUrl}${linkUrl}\n\n` : "") +
+    `All announcements live in the app under What's new: ${whatsNewUrl}\n`;
+
+  const html = shell(
+    `
+        <p style="margin:0 0 12px 0;">Hi ${escapeHtml(name)},</p>
+        <p style="margin:0 0 8px 0;font-weight:700;">${escapeHtml(title)}</p>
+        <p style="margin:0 0 16px 0;white-space:pre-line;">${escapeHtml(body)}</p>
+        ${linkUrl ? btn("Check it out", `${appUrl}${linkUrl}`) : btn("Open the app", appUrl)}
+        <p style="margin:16px 0 0 0;font-size:12px;color:#6b7280;">All announcements live in the app under <a href="${whatsNewUrl}" style="color:#047857;">What&#39;s new</a>.</p>
+`,
+    { unsubscribeUrl }
+  );
+
+  return { subject, text, html };
+}
+
 export function teamsAnnouncementEmail(opts: {
   name: string;
   appUrl: string;

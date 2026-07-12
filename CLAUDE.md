@@ -100,6 +100,14 @@ fan-out pattern, also in `complete-invite`/inbound) with Reply-To = submitter.
 The bug/idea/other set + validator + message cap live once in
 `lib/feedback-types.ts` (client-safe) — don't redefine them at call sites.
 
+**Announcements**: feature announcements are `Announcement` rows with a
+permanent home at `/whats-new` (which also hosts the how-to guides:
+email forwarding, calendar feed). Publish via `/admin/announcements` —
+the POST route optionally fans out a bell nudge (feed type
+`announcement`) and a pref-filtered email (generic `announcementEmail`
+template). Don't add new bespoke `broadcast/*` routes for future
+features; use this.
+
 **Real-time client**: `(app)/tee-times/auto-refresh.tsx` is an EventSource
 client that calls `router.refresh()` on every SSE event AND on every
 (re)connect (that's what makes PWA resume show fresh data); 30s polling is
