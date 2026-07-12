@@ -9,5 +9,6 @@ export const config = {
     "/notifications/:path*",
     "/feedback/:path*",
     "/teams/:path*",
+    "/whats-new/:path*",
   ],
 };
