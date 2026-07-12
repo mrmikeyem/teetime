@@ -48,7 +48,7 @@ react-hook-form · Tailwind · `@anthropic-ai/sdk` (weather blurbs).
 - `/api/profile/*` — push subscription, calendar token rotation, defaults, notification prefs
 - `POST /api/notifications/read` (mark read, all or by ids) · `/dismiss` (soft-dismiss via `dismissedAt`) · `/action` (session-authed inline Confirm/Decline/Join/Leave — re-validates live `actionState`, 409s stale taps, calls the shared `tee-time-actions` cores). No `GET` — the bell is server-rendered from `getResolvedFeed` and refreshes via SSE
 - `POST /api/feedback` — user feedback (type bug/idea/other + message); saves a `Feedback` row + emails all admins with Reply-To = submitter (`kind: "feedback"`); types/validation/cap shared via `lib/feedback-types.ts`
-- `/api/guests`, `/api/users/search`, `/api/weather`
+- `/api/guests`, `/api/users/search`, `/api/weather` · `POST /api/weather/refresh` — force-regenerate one tee time's cached "what to expect" blurb (fresh Open-Meteo fetch + Claude call)
 
 ## lib/ inventory
 
@@ -69,7 +69,9 @@ react-hook-form · Tailwind · `@anthropic-ai/sdk` (weather blurbs).
 | `push.ts` | `sendPushToUser` — web-push, prunes 410-gone endpoints |
 | `ics.ts` | calendar feed rendering; **UID_DOMAIN frozen at infiniterien.com on purpose** (stable UIDs) |
 | `weather.ts` | Open-Meteo geocode (24h cache) + forecast (30m cache) |
-| `weather-summary.ts` | `getRoundSummary` — Claude `claude-haiku-4-5` blurb for the detail page |
+| `weather-summary.ts` | `getRoundSummary` — Claude `claude-haiku-4-5` blurb; when the course matches `course-holes.ts` and wind ≥8mph, the prompt gets a per-hole wind block (headwind/tailwind/cross by bearing) so it can call out specific holes |
+| `weather-summary-cache.ts` | sliding-TTL in-process cache for the blurb (24h when ≥7d out → 30min day-of; null summaries retry in 10min). Keyed on tee time id, invalidated by teeOff/coords/course change. Callers: detail page + reminders cron. Works because prod is one systemd process |
+| `course-holes.ts` | course matcher (free-text `TeeTime.course` → aliases) + hole/wind relation math. Data: `course-hole-data.generated.ts` (8 OSM courses via `scripts/generate-hole-bearings.mjs`) + Lincoln Park manual |
 | `inbound-email.ts` | webhook signature verify (svix scheme, no dep), Resend received-email fetch, `forwardingMailboxes()` (Gmail auto-fwd member from headers), Haiku `email_kind` classification + booking extraction (JSON-schema + zod), `parseForwardingConfirmation()` (Google onboarding link), CT-wall-time→UTC |
 | `tournament.ts` | `parseTournamentFields` — validation for the TOURNAMENT variant |
 | `time.ts` | America/Chicago helpers (`startOfTodayInAppTz`) — app displays Central, server runs UTC |

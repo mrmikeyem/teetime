@@ -6,7 +6,7 @@ import { reminderEmail, type RosterEntry } from "@/lib/email-templates";
 import { shouldNotify } from "@/lib/notifications";
 import { mintToken, buildActionUrl } from "@/lib/email-actions";
 import { startOfTodayInAppTz } from "@/lib/time";
-import { getRoundSummary } from "@/lib/weather-summary";
+import { getCachedRoundSummary } from "@/lib/weather-summary-cache";
 import { sendPushToUser } from "@/lib/push";
 import { recordNotificationOnce } from "@/lib/notification-feed";
 
@@ -54,7 +54,13 @@ export async function POST(req: Request) {
 
     const whatToExpect =
       t.lat != null && t.lon != null
-        ? await getRoundSummary({ lat: t.lat, lon: t.lon }, t.teeOffAt)
+        ? await getCachedRoundSummary({
+            id: t.id,
+            lat: t.lat,
+            lon: t.lon,
+            teeOffAt: t.teeOffAt,
+            course: t.course,
+          })
             .then((r) => r?.summary ?? null)
             .catch(() => null)
         : null;

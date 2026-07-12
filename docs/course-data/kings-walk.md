@@ -32,7 +32,7 @@ Notes column and detailed below the table.
 | 5    | 100         | ESE        | 4   | Starts east, dogleg right to ESE — see Doglegs |
 | 6    | 57          | NE/ENE     | 4   | |
 | 7    | 237         | SW/WSW     | 4   | Reverse of #6 |
-| 8    | 57          | NE/ENE     | 3   | |
+| 8    | 352         | N          | 3   | Corrected from 57 (NE) via OSM cross-check — see below. Pending Brett's on-course confirm |
 | 9    | 337         | NNW        | 5   | Parallels #1, runs back toward clubhouse |
 | 10   | 95          | E (slight S) | 4 | "Straight east, slight south dip" |
 | 11   | 112         | ESE        | 4   | |
@@ -70,6 +70,25 @@ descriptions. Findings:
 - No internal contradictions surfaced. Bearings are good enough for 5c
   prompt-level use. If finer accuracy is ever needed (5c v2?), measure
   pixel-bearings from the screenshot per hole.
+
+## OSM cross-check (2026-07-11)
+
+All 18 holes compared against OpenStreetMap `golf=hole` ways (see
+`scripts/generate-hole-bearings.mjs`). 17/18 agreed within 10° (mean ~4°)
+— strong mutual validation. The exception:
+
+- **Hole 8**: this table originally said 57° (NE, same as #6); OSM says
+  352° (N, a 212-yd par 3). The OSM routing is self-consistent — every
+  green→next-tee walk on the course is 44–143 m, and OSM's
+  north-pointing #8 slots exactly between #7's green and #9's tee,
+  whereas a NE-running #8 would end ~200 m from #9's actual tee. Verdict:
+  the 57° was almost certainly a manual-entry slip (copied from #6's
+  57°?). Corrected to 352°; **Brett to confirm on the ground** (is #8 the
+  north-pointing par 3 after the westbound #7?).
+
+OSM also has per-hole yardage-capable geometry and doglegs for KW if we
+ever want to regenerate this file wholesale; keeping Brett's manual table
+as primary since it's been spot-checked.
 
 ## Open questions for the data model (decide at 5c time)
 
