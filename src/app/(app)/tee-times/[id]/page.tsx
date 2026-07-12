@@ -142,7 +142,13 @@ export default async function TeeTimeDetailPage({
         </div>
         {coords && (
           <Suspense fallback={<WhatToExpectSpinner />}>
-            <WhatToExpect coords={coords} teeOffAt={teeTime.teeOffAt} />
+            <WhatToExpect
+              teeTimeId={teeTime.id}
+              lat={coords.lat}
+              lon={coords.lon}
+              teeOffAt={teeTime.teeOffAt}
+              course={teeTime.course}
+            />
           </Suspense>
         )}
         {teeTime.type === "TOURNAMENT" && (

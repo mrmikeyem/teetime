@@ -117,7 +117,17 @@ clears it so reminders re-fire.
 **Weather**: `lib/weather.ts` (Open-Meteo geocode + forecast, cached via
 `next: { revalidate }`) and `lib/weather-summary.ts`, which calls Claude
 (`claude-haiku-4-5` via `@anthropic-ai/sdk`, `ANTHROPIC_API_KEY` in env) to
-write the "what to expect" blurb on a tee time's detail page.
+write the "what to expect" blurb on a tee time's detail page. When the
+tee time's course matches `lib/course-holes.ts` (aliases over the
+free-text course field) and wind ≥8mph, the prompt gets a per-hole
+headwind/tailwind/cross block computed from hole bearings
+(`course-hole-data.generated.ts` — regenerate with
+`node scripts/generate-hole-bearings.mjs`, OSM-sourced; Lincoln Park is
+manual). The blurb is cached in-process with a sliding TTL
+(`lib/weather-summary-cache.ts`, 30min day-of → 24h a week out) — go
+through `getCachedRoundSummary`, not `getRoundSummary`, from pages/cron,
+or every render pays a Haiku call. `POST /api/weather/refresh` is the
+user-facing force-refresh.
 
 **Calendar**: `/api/calendar/[token]` serves a per-user ICS feed.
 `lib/ics.ts` `UID_DOMAIN`/`PRODID` intentionally still reference

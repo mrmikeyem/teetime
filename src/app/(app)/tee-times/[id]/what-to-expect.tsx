@@ -1,14 +1,26 @@
-import { getRoundSummary } from "@/lib/weather-summary";
-import type { Coords } from "@/lib/weather";
+import { getCachedRoundSummary } from "@/lib/weather-summary-cache";
+import { RefreshForecast } from "./refresh-forecast";
 
 export async function WhatToExpect({
-  coords,
+  teeTimeId,
+  lat,
+  lon,
   teeOffAt,
+  course,
 }: {
-  coords: Coords;
+  teeTimeId: string;
+  lat: number;
+  lon: number;
   teeOffAt: Date;
+  course: string;
 }) {
-  const result = await getRoundSummary(coords, teeOffAt).catch(() => null);
+  const result = await getCachedRoundSummary({
+    id: teeTimeId,
+    lat,
+    lon,
+    teeOffAt,
+    course,
+  }).catch(() => null);
   if (!result?.summary) return null;
 
   return (
@@ -17,6 +29,7 @@ export async function WhatToExpect({
         What to expect
       </p>
       <p className="leading-relaxed">{result.summary}</p>
+      <RefreshForecast teeTimeId={teeTimeId} ageMin={result.ageMin} />
     </div>
   );
 }

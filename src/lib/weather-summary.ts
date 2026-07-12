@@ -1,6 +1,7 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import type { Coords } from "./weather";
+import { buildHoleWindBlock, findCourseHoles } from "./course-holes";
 
 export type HourlyPoint = {
   hour: number;
@@ -45,13 +46,14 @@ function estimateHoles(roundHours: number): number {
 
 const SYSTEM_PROMPT = `You write a "what to expect" paragraph for a casual men's golf group in North Dakota about their upcoming round.
 
-Input: hourly forecast covering the expected playable window (tee-off through sunset, capped at 4 hours), an estimate of how many holes will realistically be played, sunset time, past-24h rainfall, and severe-weather alerts.
+Input: hourly forecast covering the expected playable window (tee-off through sunset, capped at 4 hours), an estimate of how many holes will realistically be played, sunset time, past-24h rainfall, and severe-weather alerts. When the course's layout is known and the wind matters, a "Hole directions" section lists which holes play into/downwind/across the tee-off wind.
 
 Output: ONE short paragraph (3-5 sentences, ~80 words max) covering the practical things — weather across the round, what to wear or bring, ground conditions, wind impact on play, daylight runway, and any heads-up like bugs or severe weather. Connect the factors when it's natural: "dry + light wind = ball will roll" beats stating them separately.
 
 Rules:
 - Be specific. Use numbers and times. "Upper 70s easing to 74 by 8pm" beats "warm."
-- Don't invent course-specific knowledge. You don't know the layout. Talk about general effects of wind direction and ground conditions, not specific holes.
+- If a "Hole directions" section is present, the routing IS known — call out the 2-4 holes where wind matters most (long holes into the wind, exposed par 3s, doglegs that flip relation mid-hole) and the practical effect. Never recite every hole or every group.
+- If NO "Hole directions" section is present, don't invent course-specific knowledge. You don't know the layout. Talk about general effects of wind direction and ground conditions, not specific holes.
 - Don't recommend a layer or jacket when temperatures stay above 70°F, unless wind/humidity make it feel meaningfully colder.
 - Only mention dusk or daylight if the round's last hour falls within 30 minutes of sunset. Otherwise skip it.
 - Match the advice to the expected round length and hole count. For a 9-hole evening round don't warn about conditions 4 hours out — only about what happens during the actual playable window.
@@ -68,7 +70,10 @@ Example B (post-rain cool round):
 Cool and damp at 58° to start, climbing to a comfortable 65° by hour three under partly cloudy skies. Light layer over a polo to start, you'll shed it by the back nine. Yesterday's half-inch of rain means soft fairways — the ball won't roll out, so club up on approaches. Calm wind throughout.
 
 Example C (mild summer round, nothing remarkable):
-Steady mid-to-upper 70s the whole round with a light 6-8mph breeze — comfortable polo-and-shorts weather. Dry ground means the ball will roll out a bit on tee shots. No rain in the picture and plenty of daylight to wrap up.`;
+Steady mid-to-upper 70s the whole round with a light 6-8mph breeze — comfortable polo-and-shorts weather. Dry ground means the ball will roll out a bit on tee shots. No rain in the picture and plenty of daylight to wrap up.
+
+Example D (windy round with hole directions known):
+Mid 70s with a stiff 17mph northwest wind gusting 25 — this one's about the wind. The long par 5s at 9 and 18 play straight into it, so expect two extra clubs there, and the par 3 16th is dead upwind too. You'll get it back on 1 and 2 riding the tailwind. Hats and ball flight low; scores won't be pretty on the back stretch home.`;
 
 function compass(deg: number): string {
   const dirs = [
@@ -103,7 +108,8 @@ function formatCtTime(utcIso: string): string {
 
 export async function getRoundForecast(
   coords: Coords,
-  teeOffAt: Date
+  teeOffAt: Date,
+  opts?: { fresh?: boolean }
 ): Promise<RoundForecast | null> {
   const now = Date.now();
   const days = (teeOffAt.getTime() - now) / (1000 * 60 * 60 * 24);
@@ -134,7 +140,10 @@ export async function getRoundForecast(
   url.searchParams.set("past_days", "1");
   url.searchParams.set("forecast_days", "16");
 
-  const res = await fetch(url, { next: { revalidate: 60 * 30 } });
+  const res = await fetch(
+    url,
+    opts?.fresh ? { cache: "no-store" } : { next: { revalidate: 60 * 30 } }
+  );
   if (!res.ok) return null;
 
   const data = (await res.json()) as {
@@ -233,7 +242,10 @@ export async function getRoundForecast(
   };
 }
 
-function formatUserMessage(forecast: RoundForecast): string {
+function formatUserMessage(
+  forecast: RoundForecast,
+  holeWindBlock: string | null
+): string {
   const teeOffCt = formatCtTime(forecast.teeOff.utcIso);
   const sunsetCt = forecast.sunsetUtcIso
     ? new Date(forecast.sunsetUtcIso).toLocaleString("en-US", {
@@ -270,15 +282,32 @@ function formatUserMessage(forecast: RoundForecast): string {
   lines.push(`Past 24h precipitation: ${precipDesc}`);
   lines.push("Severe alerts: none");
 
+  if (holeWindBlock) {
+    lines.push("");
+    lines.push(holeWindBlock);
+  }
+
   return lines.join("\n");
 }
 
 export async function summarizeRound(
-  forecast: RoundForecast
+  forecast: RoundForecast,
+  courseName?: string | null
 ): Promise<string | null> {
   if (!process.env.ANTHROPIC_API_KEY) return null;
 
-  const userText = formatUserMessage(forecast);
+  const course = courseName ? findCourseHoles(courseName) : null;
+  const holeWindBlock = course
+    ? buildHoleWindBlock({
+        course,
+        windFromDeg: forecast.teeOff.windDirDeg,
+        windMph: forecast.teeOff.windMph,
+        gustsMph: forecast.teeOff.gustsMph,
+        hours: forecast.hours,
+        expectedHoles: forecast.expectedHoles,
+      })
+    : null;
+  const userText = formatUserMessage(forecast, holeWindBlock);
 
   try {
     const client = new Anthropic();
@@ -310,10 +339,13 @@ export async function summarizeRound(
 
 export async function getRoundSummary(
   coords: Coords,
-  teeOffAt: Date
+  teeOffAt: Date,
+  opts?: { courseName?: string | null; fresh?: boolean }
 ): Promise<{ forecast: RoundForecast; summary: string | null } | null> {
-  const forecast = await getRoundForecast(coords, teeOffAt);
+  const forecast = await getRoundForecast(coords, teeOffAt, {
+    fresh: opts?.fresh,
+  });
   if (!forecast) return null;
-  const summary = await summarizeRound(forecast);
+  const summary = await summarizeRound(forecast, opts?.courseName);
   return { forecast, summary };
 }
