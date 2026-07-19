@@ -10,6 +10,7 @@ datasource db {
 enum UserRole {
   BASIC
   ADMIN
+  EVENT
 
   @@map("user_role")
 }
@@ -29,6 +30,21 @@ enum TournamentFormat {
   OTHER
 
   @@map("tournament_format")
+}
+
+enum EventStandingsMode {
+  TEAM_CUMULATIVE
+  INDIVIDUAL_POINTS
+
+  @@map("event_standings_mode")
+}
+
+enum EventGameType {
+  CLOSEST_TO_PIN
+  LONG_DRIVE
+  CUSTOM
+
+  @@map("event_game_type")
 }
 
 model User {
@@ -56,6 +72,9 @@ model User {
   pushSubscriptions   PushSubscription[]
   notifications       Notification[]
   feedback            Feedback[]
+  createdEvents       Event[]                 @relation("EventCreatedBy")
+  eventParticipations EventParticipant[]      @relation("EventParticipantUser")
+  enteredScores       EventScore[]            @relation("ScoreEnteredBy")
 
   @@map("users")
 }
@@ -192,14 +211,17 @@ model TeeTime {
   lat            Float?
   lon            Float?
   notes          String?
+  eventRoundId   String?           @map("event_round_id") @db.Uuid
   createdBy      String            @map("created_by") @db.Uuid
   createdAt      DateTime          @default(now()) @map("created_at")
   updatedAt      DateTime          @updatedAt @map("updated_at")
 
-  creator User            @relation("CreatedBy", fields: [createdBy], references: [id])
-  members TeeTimeMember[]
+  creator    User        @relation("CreatedBy", fields: [createdBy], references: [id])
+  members    TeeTimeMember[]
+  eventRound EventRound? @relation(fields: [eventRoundId], references: [id], onDelete: SetNull)
 
   @@index([teeOffAt])
+  @@index([eventRoundId])
   @@map("tee_times")
 }
 
@@ -221,6 +243,141 @@ model TeeTimeMember {
   @@unique([teeTimeId, userId])
   @@unique([teeTimeId, guestId])
   @@map("tee_time_members")
+}
+
+model Event {
+  id            String             @id @default(uuid()) @db.Uuid
+  name          String
+  location      String?
+  rules         String?
+  startDate     DateTime           @map("start_date") @db.Date
+  endDate       DateTime           @map("end_date") @db.Date
+  standingsMode EventStandingsMode @default(TEAM_CUMULATIVE) @map("standings_mode")
+  createdBy     String             @map("created_by") @db.Uuid
+  createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @updatedAt @map("updated_at")
+
+  creator      User               @relation("EventCreatedBy", fields: [createdBy], references: [id])
+  teams        EventTeam[]
+  participants EventParticipant[]
+  rounds       EventRound[]
+  games        EventGame[]
+
+  @@index([startDate])
+  @@map("events")
+}
+
+model EventTeam {
+  id        String   @id @default(uuid()) @db.Uuid
+  eventId   String   @map("event_id") @db.Uuid
+  name      String
+  color     String?
+  seq       Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  event           Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  members         EventParticipant[]
+  roundOverrides  EventRoundPlayer[] @relation("RoundTeamOverride")
+  scores          EventScore[]
+  gamesWon        EventGame[]        @relation("GameWinnerTeam")
+
+  @@unique([eventId, name])
+  @@map("event_teams")
+}
+
+model EventParticipant {
+  id        String   @id @default(uuid()) @db.Uuid
+  eventId   String   @map("event_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  teamId    String?  @map("team_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  event      Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user       User               @relation("EventParticipantUser", fields: [userId], references: [id], onDelete: Cascade)
+  team       EventTeam?         @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  roundRows  EventRoundPlayer[]
+  gamesWon   EventGame[]        @relation("GameWinnerParticipant")
+
+  @@unique([eventId, userId])
+  @@map("event_participants")
+}
+
+model EventRound {
+  id        String            @id @default(uuid()) @db.Uuid
+  eventId   String            @map("event_id") @db.Uuid
+  seq       Int
+  name      String?
+  format    TournamentFormat?
+  createdAt DateTime          @default(now()) @map("created_at")
+  updatedAt DateTime          @updatedAt @map("updated_at")
+
+  event    Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  teeTimes TeeTime[]
+  scores   EventScore[]
+  players  EventRoundPlayer[]
+  games    EventGame[]
+
+  @@unique([eventId, seq])
+  @@map("event_rounds")
+}
+
+// One row per participant per round: team override for rotating-team
+// formats (null = inherit EventParticipant.teamId) + rule tracking.
+model EventRoundPlayer {
+  id            String   @id @default(uuid()) @db.Uuid
+  roundId       String   @map("round_id") @db.Uuid
+  participantId String   @map("participant_id") @db.Uuid
+  teamId        String?  @map("team_id") @db.Uuid
+  mulliFront    Boolean  @default(false) @map("mulli_front")
+  mulliBack     Boolean  @default(false) @map("mulli_back")
+  driveUsed     Boolean  @default(false) @map("drive_used")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  round       EventRound       @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  participant EventParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  team        EventTeam?       @relation("RoundTeamOverride", fields: [teamId], references: [id], onDelete: SetNull)
+
+  @@unique([roundId, participantId])
+  @@map("event_round_players")
+}
+
+model EventScore {
+  id        String   @id @default(uuid()) @db.Uuid
+  roundId   String   @map("round_id") @db.Uuid
+  teamId    String   @map("team_id") @db.Uuid
+  front9    Int?     @map("front_9")
+  back9     Int?     @map("back_9")
+  enteredBy String   @map("entered_by") @db.Uuid
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  round   EventRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  team    EventTeam  @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  enterer User       @relation("ScoreEnteredBy", fields: [enteredBy], references: [id])
+
+  @@unique([roundId, teamId])
+  @@map("event_scores")
+}
+
+model EventGame {
+  id                   String        @id @default(uuid()) @db.Uuid
+  eventId              String        @map("event_id") @db.Uuid
+  roundId              String?       @map("round_id") @db.Uuid
+  type                 EventGameType @default(CUSTOM)
+  name                 String
+  hole                 Int?
+  winnerParticipantId  String?       @map("winner_participant_id") @db.Uuid
+  winnerTeamId         String?       @map("winner_team_id") @db.Uuid
+  payoutNote           String?       @map("payout_note")
+  points               Int?
+  createdAt            DateTime      @default(now()) @map("created_at")
+  updatedAt            DateTime      @updatedAt @map("updated_at")
+
+  event             Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  round             EventRound?       @relation(fields: [roundId], references: [id], onDelete: SetNull)
+  winnerParticipant EventParticipant? @relation("GameWinnerParticipant", fields: [winnerParticipantId], references: [id], onDelete: SetNull)
+  winnerTeam        EventTeam?        @relation("GameWinnerTeam", fields: [winnerTeamId], references: [id], onDelete: SetNull)
+
+  @@map("event_games")
 }
 
 model EmailLog {

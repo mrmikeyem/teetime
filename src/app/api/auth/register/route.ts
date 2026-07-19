@@ -14,7 +14,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const { email } = await req.json();
+  const { email, role } = await req.json();
 
   const emailClean = email?.trim().toLowerCase() || null;
   if (!emailClean || !emailClean.includes("@")) {
@@ -22,6 +22,12 @@ export async function POST(req: Request) {
       { error: "A valid email is required" },
       { status: 400 }
     );
+  }
+
+  // Only EVENT may be requested at invite time (event-only guests). BASIC is
+  // the default; ADMIN promotion stays a separate, deliberate action.
+  if (role != null && role !== "BASIC" && role !== "EVENT") {
+    return NextResponse.json({ error: "Invalid role" }, { status: 400 });
   }
 
   const emailTaken = await prisma.user.findUnique({
@@ -54,6 +60,7 @@ export async function POST(req: Request) {
       name: emailClean,
       email: emailClean,
       passwordHash: placeholderHash,
+      ...(role === "EVENT" ? { role: "EVENT" as const } : {}),
     },
     select: { id: true },
   });

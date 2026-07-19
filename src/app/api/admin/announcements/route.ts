@@ -50,7 +50,12 @@ export async function POST(req: Request) {
 
   let bells = 0;
   if (body.notifyBell) {
-    const users = await prisma.user.findMany({ select: { id: true } });
+    // EVENT-role users are event-only guests — feature announcements about
+    // the group's app aren't for them.
+    const users = await prisma.user.findMany({
+      where: { role: { not: "EVENT" } },
+      select: { id: true },
+    });
     await Promise.allSettled(
       users.map((u) =>
         recordNotification({
@@ -71,6 +76,7 @@ export async function POST(req: Request) {
     const recipients = await prisma.user.findMany({
       where: {
         email: { not: null },
+        role: { not: "EVENT" },
         OR: [
           { notificationPrefs: null },
           { notificationPrefs: { unsubscribedAll: false } },

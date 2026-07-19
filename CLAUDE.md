@@ -122,6 +122,25 @@ POSTs `/api/cron/reminders` every 5 min with an `x-cron-secret` header;
 `remindedAt` on the member row dedupes, and editing a tee time's time
 clears it so reminders re-fire.
 
+**Events (the weekend hub)**: an `Event` groups tee times into a multi-day
+competition (first instance: Man Weekend). Rounds (`EventRound`) own N tee
+times via nullable `TeeTime.eventRoundId` — the hourly cleanup cron MUST keep
+skipping event-linked tee times or the event eats itself mid-weekend. The
+REST API is `/api/event/*` (SINGULAR — `/api/events` is the SSE stream).
+Admin-only structure edits (`lib/golf-events.ts` has the cores: derived
+`eventStatus`, `computeStandings`, `roundTeamId` override resolution); any
+session can enter scores / toggle mulligans / set game winners. The schedule
+builder spawns a round's tee times WITHOUT `notifyNewTeeTime` — the one
+nudge is `POST /api/event/[id]/announce`. Team membership is per-round
+(override ?? event default), so rotating-team formats need no copied rows.
+`UserRole.EVENT` = event-only guests: real users via the normal invite flow
+(checkbox on `/admin`), excluded from group-wide fan-outs (`notifyNewTeeTime`,
+announcements) but they still get direct adds + reminders. On the main page
+events render as ONE card in the chronological feed (their tee times are
+hidden from the flat list, still on the browse calendar). AI reports
+(`lib/event-report.ts`) reuse the weather-summary/Haiku + in-process-cache
+pattern: weekend outlook + post-round recap (content-hash cached).
+
 **Weather**: `lib/weather.ts` (Open-Meteo geocode + forecast, cached via
 `next: { revalidate }`) and `lib/weather-summary.ts`, which calls Claude
 (`claude-haiku-4-5` via `@anthropic-ai/sdk`, `ANTHROPIC_API_KEY` in env) to

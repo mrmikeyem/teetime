@@ -334,9 +334,12 @@ export async function notifyNewTeeTime(opts: {
       teeTime.members.map((m) => m.userId).filter((id): id is string => !!id)
     );
 
+    // EVENT-role users are event-only guests: they never hear about the
+    // group's regular tee times (direct adds and reminders still reach them).
     const candidates = await prisma.user.findMany({
       where: {
         id: { notIn: Array.from(memberUserIds), not: bookerUserId },
+        role: { not: "EVENT" },
       },
       select: { id: true, name: true, email: true },
     });

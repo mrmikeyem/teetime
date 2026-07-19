@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 
 type Member = { id: string; name: string };
 
@@ -16,7 +17,12 @@ type Mode = "random" | "balanced" | "captains";
 
 type Team = {
   label: string;
-  players: { name: string; handicap: number | null; captain: boolean }[];
+  players: {
+    name: string;
+    handicap: number | null;
+    captain: boolean;
+    memberId?: string;
+  }[];
   avg: number | null;
 };
 
@@ -58,8 +64,29 @@ function parseHandicap(raw: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-export function TeamGenerator({ members }: { members: Member[] }) {
-  const [players, setPlayers] = useState<Player[]>([]);
+export function TeamGenerator({
+  members,
+  saveTarget = null,
+  initialMemberIds = [],
+}: {
+  members: Member[];
+  saveTarget?: { eventId: string; eventName: string } | null;
+  initialMemberIds?: string[];
+}) {
+  const router = useRouter();
+  const [players, setPlayers] = useState<Player[]>(() =>
+    members
+      .filter((m) => initialMemberIds.includes(m.id))
+      .map((m) => ({
+        key: `member-${m.id}`,
+        name: m.name,
+        handicap: "",
+        captain: false,
+        memberId: m.id,
+      }))
+  );
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [guestName, setGuestName] = useState("");
   const [mode, setMode] = useState<Mode>("random");
   const [sizing, setSizing] = useState<"size" | "count">("size");
@@ -143,6 +170,7 @@ export function TeamGenerator({ members }: { members: Member[] }) {
         name: p.name,
         handicap: parseHandicap(p.handicap),
         captain: p.captain,
+        memberId: p.memberId,
       })),
       avg: showAvg
         ? group.reduce((sum, p) => sum + effective(p), 0) / group.length
@@ -250,6 +278,38 @@ export function TeamGenerator({ members }: { members: Member[] }) {
     setTeams(
       best.map((g, i) => buildTeam(`Team ${i + 1}`, g, anyHandicaps))
     );
+  }
+
+  async function saveToEvent() {
+    if (!teams || !saveTarget) return;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const res = await fetch(
+        `/api/event/${saveTarget.eventId}/teams/bulk`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            teams: teams.map((t) => ({
+              name: t.label,
+              userIds: t.players
+                .map((p) => p.memberId)
+                .filter((id): id is string => !!id),
+            })),
+          }),
+        }
+      );
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setSaveError(data.error ?? "Couldn't save the teams");
+        return;
+      }
+      router.push(`/events/${saveTarget.eventId}`);
+      router.refresh();
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function copyTeams() {
@@ -559,6 +619,37 @@ export function TeamGenerator({ members }: { members: Member[] }) {
               </div>
             ))}
           </div>
+
+          {saveTarget && (
+            <div className="space-y-2 border-t border-gray-100 pt-3 dark:border-gray-700">
+              {teams.some((t) => t.players.some((p) => !p.memberId)) && (
+                <p className="text-xs text-amber-700 dark:text-amber-400">
+                  ⚠️ Ad-hoc guests without an account can&apos;t be saved to
+                  the event — they&apos;ll be skipped. Invite them as event
+                  users first if they should count.
+                </p>
+              )}
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Saving replaces {saveTarget.eventName}&apos;s current teams
+                (and any scores already entered against them).
+              </p>
+              <button
+                type="button"
+                onClick={saveToEvent}
+                disabled={saving}
+                className="w-full rounded-lg bg-emerald-700 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-50"
+              >
+                {saving
+                  ? "Saving…"
+                  : `💾 Save these teams to ${saveTarget.eventName}`}
+              </button>
+              {saveError && (
+                <p className="text-sm text-red-600 dark:text-red-400">
+                  {saveError}
+                </p>
+              )}
+            </div>
+          )}
         </section>
       )}
     </div>

@@ -16,7 +16,7 @@ export async function POST(
   const body = await req.json();
   const next = body.role;
 
-  if (next !== "BASIC" && next !== "ADMIN") {
+  if (next !== "BASIC" && next !== "ADMIN" && next !== "EVENT") {
     return NextResponse.json({ error: "Invalid role" }, { status: 400 });
   }
 
@@ -30,7 +30,7 @@ export async function POST(
 
   // Guard: protected users cannot be demoted by anyone — including themselves.
   // Configured via PROTECTED_USER_IDS env (server-side only, not toggleable in app).
-  if (next === "BASIC" && isProtectedUserId(target.id)) {
+  if (next !== "ADMIN" && isProtectedUserId(target.id)) {
     return NextResponse.json(
       { error: "This admin is protected and cannot be demoted." },
       { status: 403 }
@@ -38,7 +38,7 @@ export async function POST(
   }
 
   // Guard: don't strand the system without an admin.
-  if (target.id === session?.user.id && next === "BASIC") {
+  if (target.id === session?.user.id && next !== "ADMIN") {
     const adminCount = await prisma.user.count({ where: { role: "ADMIN" } });
     if (adminCount <= 1) {
       return NextResponse.json(

@@ -38,6 +38,13 @@ export default async function TeeTimeDetailPage({
         },
         orderBy: { createdAt: "asc" },
       },
+      eventRound: {
+        select: {
+          seq: true,
+          name: true,
+          event: { select: { id: true, name: true } },
+        },
+      },
     },
   });
 
@@ -80,6 +87,17 @@ export default async function TeeTimeDetailPage({
       <Link href="/tee-times" className="text-sm text-emerald-700 hover:underline">
         ← All tee times
       </Link>
+
+      {teeTime.eventRound && (
+        <Link
+          href={`/events/${teeTime.eventRound.event.id}`}
+          className="block rounded-lg border border-emerald-700/40 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800 hover:bg-emerald-100 dark:border-emerald-500/40 dark:bg-emerald-900/20 dark:text-emerald-300 dark:hover:bg-emerald-900/40"
+        >
+          ⛳ Part of {teeTime.eventRound.event.name} —{" "}
+          {teeTime.eventRound.name ?? `Round ${teeTime.eventRound.seq}`} · view
+          the hub →
+        </Link>
+      )}
 
       <header className="space-y-2">
         <h1 className="text-2xl font-bold">

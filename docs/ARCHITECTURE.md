@@ -15,9 +15,9 @@ react-hook-form · Tailwind · `@anthropic-ai/sdk` (weather blurbs).
 
 | Model | Table | Purpose / notable fields |
 |---|---|---|
-| `User` | `users` | role `BASIC\|ADMIN`; **`email` is nullable**; unique `username`; `lastLoginAt` |
+| `User` | `users` | role `BASIC\|ADMIN\|EVENT` (EVENT = event-only guest: sees everything, excluded from group-wide fan-outs); **`email` is nullable**; unique `username`; `lastLoginAt` |
 | `Guest` | `guests` | non-account players admins/members can add to rounds |
-| `TeeTime` | `tee_times` | one model, two variants via `type` (`TEE_TIME`/`TOURNAMENT`); tournament-only fields (format, entryFee, teamSize, signupDeadline, isShotgun, rangeOpensTime…); `lat`/`lon` geocoded from course name |
+| `TeeTime` | `tee_times` | one model, two variants via `type` (`TEE_TIME`/`TOURNAMENT`); tournament-only fields (format, entryFee, teamSize, signupDeadline, isShotgun, rangeOpensTime…); `lat`/`lon` geocoded from course name; nullable `eventRoundId` links it into an event round (SetNull on round delete; **cleanup cron never sweeps event tee times**) |
 | `TeeTimeMember` | `tee_time_members` | exactly one of `userId`/`guestId` (CHECK constraint); `confirmed`; `remindedAt` dedupes the 1h reminder; unique per (teeTime,user) and (teeTime,guest) |
 | `PushSubscription` | `push_subscriptions` | web-push endpoints; **origin-scoped** — a domain change invalidates them all |
 | `NotificationPreference` | `notification_preferences` | per-user opt-outs incl. `unsubscribedAll` (set by email unsubscribe link) |
@@ -27,18 +27,26 @@ react-hook-form · Tailwind · `@anthropic-ai/sdk` (weather blurbs).
 | `Notification` | `notifications` | in-app feed (the header bell); a persistent mirror of every nudge — `type`, `title`, `body`, `url` (`/tee-times/<id>`), `readAt`, `dismissedAt`. Written regardless of prefs (the "in case you missed it" channel); pruned hourly (read >30d, any >90d) |
 | `Announcement` | `announcements` | permanent what's-new entries shown at `/whats-new` (title/body/optional in-app url/publishedAt); created at `/admin/announcements`, which can also fan out a bell nudge + pref-filtered email |
 | `Feedback` | `feedback` | user feedback / feature requests — `type` (bug/idea/other), `message`, `userId`. Submitted at `/feedback`; emails all admins (Reply-To = submitter) + persists the row |
+| `Event` | `events` | the weekend-hub module (Man Weekend etc.): name, location, rules text, start/end `@db.Date`, `standingsMode` (`TEAM_CUMULATIVE`\|`INDIVIDUAL_POINTS`). **Status is derived from dates, never stored** (`eventStatus()`) |
+| `EventTeam` | `event_teams` | event-scoped team identity (name/color/seq); unique (event,name) |
+| `EventParticipant` | `event_participants` | userId (members OR EVENT-role guests) + nullable default `teamId`; unique (event,user) |
+| `EventRound` | `event_rounds` | seq/name/format; owns N tee times (7 players = two groups, one round). Course/time/weather flow up from the tee times |
+| `EventRoundPlayer` | `event_round_players` | per participant per round: mulligan front/back + drive-used toggles, and nullable `teamId` **override** (rotating-team formats — resolution is `override ?? participant.teamId` at read time, never copied rows) |
+| `EventScore` | `event_scores` | per round per team: `front9`/`back9` (total computed), `enteredBy` stamp; unique (round,team) |
+| `EventGame` | `event_games` | side games/props: type (CTP/long drive/custom), optional round+hole, winner (participant or team), payout note, optional points |
 
 ## Route map
 
 ### Pages
 - `(auth)`: `/login`, `/register` (static invite-only notice), `/forgot-password`, `/reset-password`, `/set-password` (invite completion)
-- `(app)` (middleware-gated): `/tee-times` (list + calendar + SSE auto-refresh + notification bell), `/tee-times/new`, `/tee-times/[id]` (roster, join/leave/confirm, weather, "what to expect"), `/tee-times/[id]/edit`, `/notifications` (full activity-feed history), `/feedback` (user feedback form), `/profile` (push toggle, calendar feed, defaults, prefs), `/account`, `/admin` (users + invites), `/admin/emails` (send log), `/admin/feedback` (submitted feedback, type-filterable), `/teams` (team generator: random / handicap-balanced / captains draw from member chips + free-text guests — pure client tool, nothing persisted, no API), `/whats-new` (permanent announcement list + how-to guides: email forwarding, calendar feed), `/admin/announcements` (publish/delete; checkboxes to nudge bells and/or email members)
+- `(app)` (middleware-gated): `/tee-times` (unified chronological feed of tee times + tournaments + event cards, calendar, SSE auto-refresh, bell, ☰ header menu), `/tee-times/new`, `/tee-times/[id]` (roster, join/leave/confirm, weather, "what to expect", part-of-event banner), `/tee-times/[id]/edit`, `/events` (list), `/events/new` + `/events/[id]/edit` (admin), `/events/[id]` (the hub: standings, rounds + schedule builder, score entry, mulligan board, teams, games, AI outlook/recap), `/notifications` (full activity-feed history), `/feedback` (user feedback form), `/profile` (push toggle, calendar feed, defaults, prefs), `/account`, `/admin` (users + invites incl. event-only checkbox), `/admin/emails` (send log), `/admin/feedback` (submitted feedback, type-filterable), `/teams` (team generator: random / handicap-balanced / captains draw — client-side, EXCEPT `?event=<id>` mode which preloads the event roster and lets admins save the draw as the event's teams), `/whats-new` (permanent announcement list + how-to guides: email forwarding, calendar feed), `/admin/announcements` (publish/delete; checkboxes to nudge bells and/or email members)
 - `/email-actions/[action]` + `/email-actions/result`: no-login landing pages for email links
 
 ### API (all return JSON; auth = session unless noted)
 - `POST /api/tee-times` create (+creator auto-member, +picked members) · `PATCH|DELETE /api/tee-times/[id]`
 - `POST|PATCH|DELETE /api/tee-times/[id]/members` — join/add, confirm-toggle, remove. Each mutation: DB write → `broadcastChange()` → notification fan-out
 - `GET /api/events` — SSE stream (see Real-time)
+- `/api/event/*` (singular — `/api/events` was taken by SSE) — the events module. `POST /api/event` + `PATCH|DELETE /api/event/[id]` (admin). Per event `[id]`: `POST rounds` (**schedule builder**: date+course+times[] → round + geocoded tee times in one shot, deliberately NO notifyNewTeeTime) · `PATCH|DELETE rounds/[roundId]` (delete removes its tee times too) · `PUT rounds/[roundId]/players` (mulligan/drive toggles + per-round team override; any session) · `POST teams`, `PATCH|DELETE teams/[teamId]`, `POST teams/bulk` (generator save — replaces teams+assignments) · `POST participants`, `PATCH|DELETE participants/[participantId]` · `PUT scores` (front9/back9 upsert, any session, enteredBy stamped) · `POST games`, `PATCH|DELETE games/[gameId]` (winner/details; delete admin) · `POST announce` (admin; the ONE schedule nudge — bell + push to everyone incl. EVENT users)
 - `POST /api/auth/register` (ADMIN; invite by email) · `complete-invite` · `forgot-password` · `reset-password` (all token-based, no session)
 - `POST /api/email-actions/[action]` — consumes `EmailActionToken`s (no session)
 - `GET /api/calendar/[token]` — per-user ICS feed (token auth)
@@ -75,7 +83,9 @@ react-hook-form · Tailwind · `@anthropic-ai/sdk` (weather blurbs).
 | `course-holes.ts` | course matcher (free-text `TeeTime.course` → aliases) + hole/wind relation math. Data: `course-hole-data.generated.ts` (8 OSM courses via `scripts/generate-hole-bearings.mjs`) + Lincoln Park manual |
 | `inbound-email.ts` | webhook signature verify (svix scheme, no dep), Resend received-email fetch, `forwardingMailboxes()` (Gmail auto-fwd member from headers), Haiku `email_kind` classification + booking extraction (JSON-schema + zod), `parseForwardingConfirmation()` (Google onboarding link), CT-wall-time→UTC |
 | `tournament.ts` | `parseTournamentFields` — validation for the TOURNAMENT variant |
-| `time.ts` | America/Chicago helpers (`startOfTodayInAppTz`) — app displays Central, server runs UTC |
+| `time.ts` | America/Chicago helpers (`startOfTodayInAppTz`, `appTzWallTimeToUtc` for the schedule builder, `isoDateInAppTz`) — app displays Central, server runs UTC |
+| `golf-events.ts` | events-module core: `eventStatus()` (derived from dates), `getEventForHub()` (the hub include tree), `computeStandings()` (cumulative team strokes or individual points + leader line), `roundTeamId()` (override ?? default), `parseEventFields()` |
+| `event-report.ts` | AI reports for the hub, same cache discipline as weather-summary-cache: weekend **outlook** (multi-round forecast → Haiku, sliding TTL) + post-round **recap** (scores/mulligans/games → sports-writer paragraph, cached on a content hash so it regenerates only when data changes) |
 | `tee-time-defaults.ts` | per-user new-tee-time defaults |
 
 ## Cross-cutting flows
