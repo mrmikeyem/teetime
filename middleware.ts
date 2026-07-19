@@ -10,5 +10,6 @@ export const config = {
     "/feedback/:path*",
     "/teams/:path*",
     "/whats-new/:path*",
+    "/events/:path*",
   ],
 };

@@ -3,10 +3,17 @@ import { redirect } from "next/navigation";
 import { auth, signOut } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Logo } from "@/app/components/logo";
-import { startOfTodayInAppTz } from "@/lib/time";
+import { isoDateInAppTz, startOfTodayInAppTz } from "@/lib/time";
+import {
+  computeStandings,
+  eventStatus,
+  getEventForHub,
+} from "@/lib/golf-events";
 import { ListWithCalendar, type TeeTimeListItem } from "./list-with-calendar";
 import { AutoRefresh } from "./auto-refresh";
 import { NotificationBell } from "./notification-bell";
+import { HeaderMenu } from "./header-menu";
+import type { EventCardData } from "./event-card";
 import { getResolvedFeed } from "@/lib/notification-feed";
 import {
   GRAND_FORKS,
@@ -21,9 +28,9 @@ export default async function TeeTimesPage() {
   const session = await auth();
   if (!session) redirect("/login");
 
-  // Feed and tee-time list are independent — run them concurrently rather than
-  // serializing two query round-trips on this force-dynamic page.
-  const [{ items: feedItems, unread: unreadCount }, teeTimes] =
+  // Feed, tee-time list, and live-event ids are independent — run them
+  // concurrently rather than serializing query round-trips.
+  const [{ items: feedItems, unread: unreadCount }, teeTimes, liveEventIds] =
     await Promise.all([
       getResolvedFeed(session.user.id, 10),
       prisma.teeTime.findMany({
@@ -40,7 +47,44 @@ export default async function TeeTimesPage() {
           },
         },
       }),
+      prisma.event.findMany({
+        where: {
+          endDate: { gte: new Date(`${isoDateInAppTz(new Date())}T00:00:00Z`) },
+        },
+        orderBy: { startDate: "asc" },
+        select: { id: true },
+      }),
     ]);
+
+  // Active/upcoming events render as tournament-style cards slotted into the
+  // list chronologically (their tee times collapse under them).
+  const eventCards: EventCardData[] = (
+    await Promise.all(liveEventIds.map(({ id }) => getEventForHub(id)))
+  )
+    .filter((ev): ev is NonNullable<typeof ev> => ev != null)
+    .map((ev) => {
+      const teeOffs = ev.rounds.flatMap((r) =>
+        r.teeTimes.map((t) => t.teeOffAt.getTime())
+      );
+      return {
+        id: ev.id,
+        name: ev.name,
+        startDate: ev.startDate.toISOString(),
+        endDate: ev.endDate.toISOString(),
+        location: ev.location,
+        status: eventStatus(ev),
+        leaderLine: computeStandings(ev).leaderLine,
+        rounds: ev.rounds.map((r) => ({
+          id: r.id,
+          label: r.name ?? `Rd ${r.seq}`,
+          course: r.teeTimes[0]?.course ?? null,
+          teeOffs: r.teeTimes.map((t) => t.teeOffAt.toISOString()),
+        })),
+        sortKey: teeOffs.length
+          ? new Date(Math.min(...teeOffs)).toISOString()
+          : ev.startDate.toISOString(),
+      };
+    });
 
   const weatherByTeeId = new Map<string, WeatherSummary | null>();
   await Promise.all(
@@ -80,6 +124,9 @@ export default async function TeeTimesPage() {
     teamSize: t.teamSize,
     type: t.type,
     creatorName: t.creator.name,
+    // Event tee times stay out of the flat list (they collapse under their
+    // event's card) but still feed the browse calendar.
+    inEvent: t.eventRoundId != null,
     members: t.members.map((m) => ({
       name: m.user?.name ?? m.guest?.name ?? "(unknown)",
       confirmed: m.confirmed,
@@ -89,69 +136,36 @@ export default async function TeeTimesPage() {
 
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-8 space-y-6">
-      <header className="space-y-3">
-        <div className="flex items-center gap-2 sm:gap-3">
-          <Logo size={56} className="h-10 w-10 shrink-0 sm:h-12 sm:w-12" />
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate text-lg font-bold leading-tight sm:text-2xl">
-              Tee Time Tracker
-            </h1>
-            <p className="truncate text-xs text-gray-500 dark:text-gray-400 sm:text-sm">
-              Hi {session.user.name}.
-            </p>
-          </div>
+      <header className="flex items-center gap-2 sm:gap-3">
+        <Logo size={56} className="h-10 w-10 shrink-0 sm:h-12 sm:w-12" />
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-lg font-bold leading-tight sm:text-2xl">
+            Tee Time Tracker
+          </h1>
+          <p className="truncate text-xs text-gray-500 dark:text-gray-400 sm:text-sm">
+            Hi {session.user.name}.
+          </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           <NotificationBell
             initialItems={feedItems}
             initialUnread={unreadCount}
           />
-          <Link
-            href="/profile"
-            className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-800"
-          >
-            Profile
-          </Link>
-          <Link
-            href="/feedback"
-            className="rounded-lg bg-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
-          >
-            Feedback
-          </Link>
-          <Link
-            href="/teams"
-            className="rounded-lg bg-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
-          >
-            Teams
-          </Link>
-          <Link
-            href="/whats-new"
-            className="rounded-lg bg-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
-          >
-            What&apos;s new
-          </Link>
-          {session.user.role === "ADMIN" && (
-            <Link
-              href="/admin"
-              className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-800"
+          <HeaderMenu isAdmin={session.user.role === "ADMIN"}>
+            <form
+              action={async () => {
+                "use server";
+                await signOut({ redirectTo: "/login" });
+              }}
             >
-              Admin
-            </Link>
-          )}
-          <form
-            action={async () => {
-              "use server";
-              await signOut({ redirectTo: "/login" });
-            }}
-            className="ml-auto"
-          >
-            <button
-              type="submit"
-              className="rounded-lg bg-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
-            >
-              Sign out
-            </button>
-          </form>
+              <button
+                type="submit"
+                className="block w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+              >
+                Sign out
+              </button>
+            </form>
+          </HeaderMenu>
         </div>
       </header>
 
@@ -162,7 +176,11 @@ export default async function TeeTimesPage() {
         + New tee time
       </Link>
 
-      <ListWithCalendar teeTimes={listItems} dailyWeather={dailyGrid} />
+      <ListWithCalendar
+        teeTimes={listItems}
+        events={eventCards}
+        dailyWeather={dailyGrid}
+      />
       <AutoRefresh />
     </main>
   );

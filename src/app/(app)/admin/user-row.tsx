@@ -9,7 +9,7 @@ type UserRowProps = {
     username: string;
     name: string;
     email: string | null;
-    role: "BASIC" | "ADMIN";
+    role: "BASIC" | "ADMIN" | "EVENT";
     lastLoginAt: string | null;
     createdAt: string;
     teeTimeCount: number;
@@ -26,7 +26,7 @@ export function UserRow({ user, isSelf }: UserRowProps) {
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
 
-  async function changeRole(next: "BASIC" | "ADMIN") {
+  async function changeRole(next: "BASIC" | "ADMIN" | "EVENT") {
     if (next === role || roleBusy) return;
     setError("");
     setRoleBusy(true);
@@ -79,6 +79,8 @@ export function UserRow({ user, isSelf }: UserRowProps) {
               className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
                 role === "ADMIN"
                   ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300"
+                  : role === "EVENT"
+                  ? "bg-sky-100 dark:bg-sky-900/40 text-sky-800 dark:text-sky-300"
                   : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
               }`}
             >
@@ -115,7 +117,9 @@ export function UserRow({ user, isSelf }: UserRowProps) {
             <select
               value={role}
               disabled={roleBusy || user.isProtected}
-              onChange={(e) => changeRole(e.target.value as "BASIC" | "ADMIN")}
+              onChange={(e) =>
+                changeRole(e.target.value as "BASIC" | "ADMIN" | "EVENT")
+              }
               title={
                 user.isProtected
                   ? "Protected user — role cannot be changed."
@@ -125,6 +129,7 @@ export function UserRow({ user, isSelf }: UserRowProps) {
             >
               <option value="BASIC">basic</option>
               <option value="ADMIN">admin</option>
+              <option value="EVENT">event</option>
             </select>
             <button
               type="button"

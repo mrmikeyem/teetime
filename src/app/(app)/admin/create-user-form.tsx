@@ -16,11 +16,12 @@ export function CreateUserForm() {
     const form = e.currentTarget;
     const formData = new FormData(form);
     const email = (formData.get("email") as string).trim();
+    const eventOnly = formData.get("eventOnly") === "on";
 
     const res = await fetch("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ email, role: eventOnly ? "EVENT" : "BASIC" }),
     });
 
     setLoading(false);
@@ -66,6 +67,21 @@ export function CreateUserForm() {
           They&apos;ll get an email to set their name and password.
         </p>
       </div>
+
+      <label className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
+        <input
+          type="checkbox"
+          name="eventOnly"
+          className="mt-0.5 h-4 w-4 rounded border-gray-300 text-emerald-700 focus:ring-emerald-600"
+        />
+        <span>
+          Event-only user
+          <span className="block text-xs font-normal text-gray-500 dark:text-gray-400">
+            For trip guests: full access to events they&apos;re in, but no
+            emails/pushes about the group&apos;s regular tee times.
+          </span>
+        </span>
+      </label>
 
       <button
         type="submit"

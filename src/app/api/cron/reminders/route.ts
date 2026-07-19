@@ -175,7 +175,10 @@ async function runCleanup(now: Date) {
   const maxNotifCutoff = new Date(now.getTime() - NOTIFICATION_MAX_AGE_MS);
 
   const [teeTimes, tokens, resetTokens, notifications] = await Promise.all([
-    prisma.teeTime.deleteMany({ where: { teeOffAt: { lt: cutoff } } }),
+    // Event-linked tee times are the event's permanent history — never swept.
+    prisma.teeTime.deleteMany({
+      where: { teeOffAt: { lt: cutoff }, eventRoundId: null },
+    }),
     prisma.emailActionToken.deleteMany({ where: { expiresAt: { lt: now } } }),
     prisma.passwordResetToken.deleteMany({
       where: { OR: [{ usedAt: { not: null } }, { expiresAt: { lt: now } }] },

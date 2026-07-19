@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Countdown } from "./countdown";
 import { TeeTimeCalendar } from "./calendar";
 import { WeatherChip } from "./weather-chip";
+import { EventCard, type EventCardData } from "./event-card";
 import type { WeatherSummary } from "@/lib/weather";
 
 export type TeeTimeListItem = {
@@ -16,6 +17,9 @@ export type TeeTimeListItem = {
   teamSize: number | null;
   type: "TEE_TIME" | "TOURNAMENT";
   creatorName: string;
+  /** True when the tee time belongs to an event round — it renders collapsed
+   *  under the event's card instead of as its own list entry. */
+  inEvent: boolean;
   members: { name: string; confirmed: boolean }[];
   weather: WeatherSummary | null;
 };
@@ -27,17 +31,25 @@ export type DailyWeatherEntry = {
   condition: string;
 };
 
+/** One row in the unified "everything scheduled" feed. */
+type FeedEntry =
+  | { kind: "teeTime"; sortKey: string; teeTime: TeeTimeListItem }
+  | { kind: "event"; sortKey: string; event: EventCardData };
+
 export function ListWithCalendar({
   teeTimes,
+  events = [],
   dailyWeather,
 }: {
   teeTimes: TeeTimeListItem[];
+  events?: EventCardData[];
   dailyWeather: DailyWeatherEntry[];
 }) {
   const [calendarOpen, setCalendarOpen] = useState(false);
 
   const dailyMap = new Map(dailyWeather.map((d) => [d.date, d]));
 
+  // The calendar sees every tee time, event ones included.
   const byDate = new Map<string, TeeTimeListItem[]>();
   for (const t of teeTimes) {
     const key = isoLocalDate(new Date(t.teeOffAt));
@@ -46,15 +58,36 @@ export function ListWithCalendar({
     byDate.set(key, list);
   }
 
+  // The feed is everything scheduled, chronologically: standalone tee times,
+  // tournaments, and event cards (whose tee times collapse under them).
+  const feed: FeedEntry[] = [
+    ...teeTimes
+      .filter((t) => !t.inEvent)
+      .map(
+        (t): FeedEntry => ({ kind: "teeTime", sortKey: t.teeOffAt, teeTime: t })
+      ),
+    ...events.map(
+      (ev): FeedEntry => ({ kind: "event", sortKey: ev.sortKey, event: ev })
+    ),
+  ].sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+
   return (
     <div className="space-y-4">
-      {teeTimes.length === 0 ? (
+      {feed.length === 0 ? (
         <p className="rounded-lg border border-dashed border-gray-300 bg-white p-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
           No upcoming tee times. Be the first to put one on the board.
         </p>
       ) : (
         <ul className="space-y-3">
-          {teeTimes.map((t) => {
+          {feed.map((entry) => {
+            if (entry.kind === "event") {
+              return (
+                <li key={`event-${entry.event.id}`}>
+                  <EventCard event={entry.event} />
+                </li>
+              );
+            }
+            const t = entry.teeTime;
             const teeOff = new Date(t.teeOffAt);
             const isTournament = t.type === "TOURNAMENT";
             const confirmed = t.members.filter((m) => m.confirmed).length;
