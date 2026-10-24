@@ -10,10 +10,17 @@ import {
 } from "motion/react";
 import { useEffect, useImperativeHandle, useRef, useState } from "react";
 import { landingRotation, type WheelEntry } from "@/lib/sim-wheel";
+import { sfx } from "./sound";
 
 export type WheelHandle = {
   /** Spin to the given slice index; resolves once the wheel has settled. */
   spin: (winnerIndex: number) => Promise<void>;
+  /**
+   * Flashy-reveal spin: whirl up to speed (the parent fades the wheel out
+   * mid-spin, winner unknown), then quietly park on the winner so the wheel
+   * shows it once the reveal is over.
+   */
+  spinAway: (winnerIndex: number) => Promise<void>;
 };
 
 type DisplaySlice = { id: string; name: string; sweep: number; color: string };
@@ -55,26 +62,6 @@ function darken(hex: string, amount: number): string {
   const n = parseInt(hex.replace("#", ""), 16);
   const ch = (shift: number) => Math.max(0, ((n >> shift) & 0xff) - Math.round(255 * amount));
   return `rgb(${ch(16)}, ${ch(8)}, ${ch(0)})`;
-}
-
-let audioCtx: AudioContext | null = null;
-function tick(volume: number) {
-  try {
-    audioCtx ??= new AudioContext();
-    const t = audioCtx.currentTime;
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.type = "triangle";
-    osc.frequency.setValueAtTime(1500, t);
-    osc.frequency.exponentialRampToValueAtTime(500, t + 0.03);
-    gain.gain.setValueAtTime(volume, t);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
-    osc.connect(gain).connect(audioCtx.destination);
-    osc.start(t);
-    osc.stop(t + 0.06);
-  } catch {
-    // Audio is a nicety; never let it break a spin.
-  }
 }
 
 /** Confetti burst in the theme's slice colors, from the top of the wheel. */
@@ -197,7 +184,7 @@ export function Wheel({
       const now = performance.now();
       if (soundRef.current && now - lastSound > 45) {
         lastSound = now;
-        tick(0.08);
+        sfx.tick();
         // Android haptic tick (iOS Safari has no vibrate API).
         navigator.vibrate?.(4);
       }
@@ -207,6 +194,16 @@ export function Wheel({
   useImperativeHandle(
     handleRef,
     () => ({
+      async spinAway(winnerIndex: number) {
+        const arcs = displayRef.current;
+        let start = 0;
+        for (let i = 0; i < winnerIndex; i++) start += arcs[i].sweep;
+        const arc = { start, end: start + arcs[winnerIndex].sweep };
+        await animate(rotation, rotation.get() - 14, { duration: 0.32, ease: [0.45, 0, 0.55, 1] });
+        // Accelerate hard — it's still flying when the scene covers it.
+        await animate(rotation, rotation.get() + 2200, { duration: 1.6, ease: [0.55, 0, 1, 0.45] });
+        rotation.set(landingRotation(arc, rotation.get(), 0));
+      },
       async spin(winnerIndex: number) {
         const arcs = displayRef.current;
         let start = 0;

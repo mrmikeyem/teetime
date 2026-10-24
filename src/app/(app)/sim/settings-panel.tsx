@@ -17,6 +17,8 @@ export function SettingsPanel({
   onTheme,
   skippedCount,
   onResetSession,
+  flashy,
+  onFlashy,
   isAdmin,
   onManualPlay,
 }: {
@@ -29,6 +31,8 @@ export function SettingsPanel({
   onTheme: (t: SimThemeId) => void;
   skippedCount: number;
   onResetSession: () => void;
+  flashy: boolean;
+  onFlashy: (on: boolean) => void;
   isAdmin: boolean;
   onManualPlay: () => void;
 }) {
@@ -75,6 +79,9 @@ export function SettingsPanel({
             <div className="space-y-3 px-4 pb-4 pt-2 text-sm">
               <Row label="Weighted by person" hint="Each playing player gets an equal share of the wheel (this device only).">
                 <Switch on={mode === "byPlayer"} onChange={(on) => onMode(on ? "byPlayer" : "equal")} label="Weighted by person" />
+              </Row>
+              <Row label="Tee-shot reveal" hint="The wheel whirls away and a tee shot reveals the course (this device only).">
+                <Switch on={flashy} onChange={onFlashy} label="Tee-shot reveal" />
               </Row>
               <Row label="Courses per player" hint="Only the top N of each list (drag order) go on the wheel.">
                 <select

@@ -1,16 +1,17 @@
 "use client";
 
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SimHubData } from "@/lib/sim";
-import { buildWheel, eligibleCount, pickSlice, type WheelMode } from "@/lib/sim-wheel";
+import { buildWheel, eligibleCount, pickSlice, type WheelEntry, type WheelMode } from "@/lib/sim-wheel";
 import { CourseInfoModal } from "./course-modals";
 import { PlayLog } from "./play-log";
 import { PlayersPanel } from "./players-panel";
 import { ManualPlayModal, ResultSheet, TeeModal, type CourseMeta, type Selection } from "./result-sheet";
 import { SettingsPanel } from "./settings-panel";
+import { ShotReveal } from "./shot-reveal";
 import { simTheme, type SimThemeId } from "./themes";
 import { simApi, type TeePick } from "./ui";
 import { useStoredState } from "./use-stored-state";
@@ -36,6 +37,11 @@ export function SimHub({
   const [mode, setMode] = useStoredState<WheelMode>("sim:mode", "equal");
   const [adjustTallies, setAdjustTallies] = useStoredState("sim:adjust-tallies", false);
   const [soundOn, setSoundOn] = useStoredState("sim:sound", true, "local");
+  // The tee-shot reveal (per device). Reduced-motion users always get the
+  // plain wheel landing.
+  const [flashy, setFlashy] = useStoredState("sim:flashy-reveal", true, "local");
+  const reduceMotion = useReducedMotion();
+  const [reveal, setReveal] = useState<WheelEntry | null>(null);
   const [theme, setTheme] = useState<SimThemeId>(initialTheme);
 
   // While a spin + its result card are up, hold the data steady: a live
@@ -76,17 +82,28 @@ export function SimHub({
     setWinnerId(null);
     setError("");
     const idx = pickSlice(slices);
+    if (flashy && !reduceMotion) {
+      // Slot-machine mode: the wheel whirls away mid-spin (winner unknown)
+      // and the tee-shot scene reveals it.
+      const winner = slices[idx];
+      const away = wheelRef.current.spinAway(idx);
+      setTimeout(() => setReveal(winner), 900);
+      await away;
+      setSpinning(false);
+      setWinnerId(winner.courseId);
+      return;
+    }
     await wheelRef.current.spin(idx);
     setSpinning(false);
     setWinnerId(slices[idx].courseId);
     // Let the win land (confetti, slice pop) before the card springs up.
     setTimeout(() => setSelection({ slice: slices[idx], manual: false }), 550);
-  }, [spinning, slices, data]);
+  }, [spinning, slices, data, flashy, reduceMotion]);
 
   // Space bar spins (when nothing else has focus).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.code !== "Space" || selection || teeOpen || manualOpen) return;
+      if (e.code !== "Space" || selection || teeOpen || manualOpen || reveal) return;
       const tag = (e.target as HTMLElement | null)?.tagName;
       if (tag && ["INPUT", "TEXTAREA", "SELECT", "BUTTON"].includes(tag)) return;
       e.preventDefault();
@@ -94,10 +111,11 @@ export function SimHub({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [spin, selection, teeOpen, manualOpen]);
+  }, [spin, selection, teeOpen, manualOpen, reveal]);
 
   function closeAll() {
     setSelection(null);
+    setReveal(null);
     setTeeOpen(false);
     setWinnerId(null);
     setFrozen(null);
@@ -237,6 +255,8 @@ export function SimHub({
               }}
               skippedCount={skipped.size}
               onResetSession={() => setSkippedIds([])}
+              flashy={flashy}
+              onFlashy={setFlashy}
               isAdmin={isAdmin}
               onManualPlay={() => setManualOpen(true)}
             />
@@ -287,6 +307,18 @@ export function SimHub({
         }}
       />
       <CourseInfoModal apiId={infoApiId} onClose={() => setInfoApiId(null)} />
+
+      <AnimatePresence>
+        {reveal && (
+          <ShotReveal
+            key={reveal.courseId}
+            slice={reveal}
+            scene={simTheme(theme).scene}
+            soundOn={soundOn}
+            onDone={(slice) => setSelection((cur) => cur ?? { slice, manual: false })}
+          />
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {toast && (
