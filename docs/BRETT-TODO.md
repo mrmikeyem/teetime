@@ -84,32 +84,6 @@ Companion to `docs/ROADMAP.md`.
   several strategies depending on player/team counts. Scope TBD —
   needs a discussion pass before design.
 
-- **Fold in the Golf Course Wheel sim app.** → BUILT on `feature/sim-wheel`
-  (see `docs/SIM-WHEEL-PLAN.md`); move to Done after the prod cutover. Currently lives at
-  `D:\Local Sites\brett-wysocki\app\public\golf` — a PHP + vanilla-JS
-  single-page app (LocalWP, v1.7.0) with a spin-the-wheel course picker,
-  per-person course lists, play log, GolfCourseAPI integration, 6 SCSS
-  themes, and `data.json` flat-file storage. See its own `README.md` and
-  `FUTURE_IDEAS.md` for the full feature set.
-
-  Intent: lives on its own inside this app — only the user/identity system
-  is shared. Sketch:
-  - Route segment: `(app)/sim/` (or similar) hosts wheel, course lists,
-    play log, settings.
-  - `people[]` → existing `User` rows; non-user players → existing
-    `Guest` model.
-  - New Prisma models for per-user course lists and the sim play log;
-    `courses_cache.json` becomes a DB-backed GolfCourseAPI cache with TTL.
-  - Canvas wheel logic ports intact; SortableJS → `@hello-pangea/dnd` or
-    `dnd-kit`. Admin PIN → `requireAdmin()`.
-  - SCSS theme partials are mature — useful input for item 4's styling
-    pass. Decide: port into Tailwind v4 theme tokens vs. keep SCSS
-    alongside.
-
-  Cross-feature seam (the only one): future **winter sim tee times** —
-  add a `SIM_ROUND` value to `TeeTime.type` and link it to a sim play-log
-  row. Not required for the initial fold-in.
-
 - **Styling deep dive — de-AI the look.** Current UI reads as
   generic-AI-generated. Want it to feel hand-crafted: more personality,
   intentional type/spacing/color choices, less default-Tailwind feel.
@@ -169,4 +143,7 @@ Companion to `docs/ROADMAP.md`.
 
 ## Done
 
-- _(move completed items here, with the date)_
+- **2026-10-24 — Golf Course Wheel folded in** at `/sim` (PRs #10, #11):
+  full parity on Postgres, personal course lists, riso tee-shot reveal,
+  old data imported. See `docs/SIM-WHEEL-PLAN.md`. Brett still needs to
+  redirect/lock the old brettwysocki.com/golf copy.

@@ -1,13 +1,31 @@
 # Sim Wheel fold-in plan
 
-Status: drafted 2026-10-24, **built the same day on `feature/sim-wheel`**
-(tested locally against the live data export). Decisions taken with Mike:
-Play removes the course from EVERY list; players = tee3golf members + guests
-(Lee/Mikey dropped — no courses, no plays); `User.simAccess` (default on,
-admin-toggled) gates `/sim`; tallies DO weigh within a player's share in
-by-person mode; deletes stay open to every sim user (parity), Manual Play is
-admin-only. Prod cutover = merge + `_import-sim-wheel.mjs` against a fresh
-`data.json`/`courses_cache.json` export.
+Status: **SHIPPED 2026-10-24** — PR #10 (wheel + riso reveal) and PR #11
+(personal course lists) merged and deployed; the old app's data was imported
+to prod the same night (4 players, 20 list rows with tallies, 19 rounds,
+38 courses, 51 cached GolfCourseAPI payloads; Lee/Mikey dropped — no
+courses, no plays) and announced to the group (bell + email). The one-off
+import script was deleted after use; the pre-deploy DB dump is
+`/root/dumps/teetimes-pre-sim-20261024-2109.sql`.
+
+Decisions taken with Mike (they supersede the plan below where it differs):
+- Play removes the course from EVERY list (the wheel is a collective);
+  only checked players' suggestions are on the wheel.
+- Players = tee3golf members + guests; `User.simAccess` (default on,
+  admin-toggled on `/admin`) gates `/sim`.
+- Course lists are personal: only the player edits their own list (admins
+  included); admins manage guest lists; removing a player = admin or self.
+  Tallies, checks, course links, spin/play/skip stay group-wide.
+- Tallies weigh within a player's share in by-person mode; Manual Play is
+  admin-only (replaces the PIN).
+- The reveal is a riso-print ball's-eye sequence handed off from the
+  wheel's hub ball (not a drawn golfer).
+- GolfCourseAPI moved to v1.3 (opaque 8-char ids, Bearer auth); the old
+  app's numeric ids are legacy and served from the imported cache only.
+
+Still on Brett's side: redirect or lock brettwysocki.com/golf — its
+`data.json` / `courses_cache.json` are publicly downloadable and its API has
+no auth.
 
 Goal: move the winter-simulator **Golf Course Wheel**
 (https://brettwysocki.com/golf, PHP + vanilla JS + `data.json`, v1.7.1) into
