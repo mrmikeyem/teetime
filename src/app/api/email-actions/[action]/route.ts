@@ -12,6 +12,7 @@ import {
   declineOrLeaveMembership,
   joinTeeTime,
 } from "@/lib/tee-time-actions";
+import { confirmSimNight, cancelSimNight } from "@/lib/sim-nights";
 
 const APP_URL = process.env.AUTH_URL ?? "https://tee3golf.com";
 
@@ -21,6 +22,8 @@ const VALID_ACTIONS: ReadonlySet<EmailActionType> = new Set([
   "leave",
   "join",
   "cancel_teetime",
+  "sim_on",
+  "sim_off",
   "unsubscribe",
 ]);
 
@@ -74,6 +77,8 @@ export async function POST(
     leave: "You've been removed from the tee time.",
     join: "You're added to the tee time.",
     cancel_teetime: "The tee time has been cancelled and removed for the group.",
+    sim_on: "It's on. Everyone on it has been told.",
+    sim_off: "It's off for this one. Everyone on it has been told.",
     unsubscribe: "Unsubscribed. You won't receive more emails.",
   }[action];
 
@@ -117,6 +122,16 @@ async function runAction(
         throw new Error("This tee time no longer exists.");
       }
       broadcastChange(teeTimeId);
+      return;
+    }
+    case "sim_on": {
+      if (!teeTimeId) throw new Error("Token is missing a tee time.");
+      await confirmSimNight(userId, teeTimeId);
+      return;
+    }
+    case "sim_off": {
+      if (!teeTimeId) throw new Error("Token is missing a tee time.");
+      await cancelSimNight(userId, teeTimeId);
       return;
     }
     case "unsubscribe": {

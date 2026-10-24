@@ -341,16 +341,17 @@ export function reminderEmail(opts: {
   whatToExpect?: string | null;
   isTournament?: boolean;
   isShotgun?: boolean;
+  isSim?: boolean;
 }) {
-  const { name, course, tournamentName, teeOffAt, roster, confirmUrl, leaveUrl, detailUrl, unsubscribeUrl, whatToExpect, isTournament, isShotgun } = opts;
+  const { name, course, tournamentName, teeOffAt, roster, confirmUrl, leaveUrl, detailUrl, unsubscribeUrl, whatToExpect, isTournament, isShotgun, isSim } = opts;
   const when = formatTeeOff(teeOffAt);
-  const noun = isTournament ? "Tournament" : "Tee time";
+  const noun = isTournament ? "Tournament" : isSim ? "Sim night" : "Tee time";
   const startLabel = isShotgun ? "Shotgun start" : isTournament ? "Start" : "Tee off";
   // Tournament subject uses name (if set) + venue. Falls back to venue alone.
   const tournamentTitle = tournamentName ? `${tournamentName} at ${course}` : course;
   const subject = isTournament
     ? `${isShotgun ? "Shotgun" : "Tournament"} in 1 hour — ${tournamentTitle}, ${when}`
-    : `Tee time in 1 hour — ${course}, ${when}`;
+    : `${noun} in 1 hour — ${course}, ${when}`;
 
   const rosterText = roster
     .map((r) => `  ${r.confirmed ? "✓" : "•"} ${r.name}${r.isGuest ? " (guest)" : ""}`)
@@ -910,6 +911,115 @@ export function teamsAnnouncementEmail(opts: {
         </ul>
         <p style="margin:0 0 16px 0;">Re-roll until it looks right, then hit copy and paste the teams into the group chat. Nothing is saved — it's a quick draw tool for the parking lot.</p>
         ${btn("Generate teams", teamsUrl)}
+`,
+    { unsubscribeUrl }
+  );
+
+  return { subject, text, html };
+}
+
+function simNightCard(venue: string, when: string, roster: RosterEntry[]) {
+  const rosterHtml = roster.length
+    ? roster
+        .map(
+          (r) =>
+            `<li style="padding:2px 0;">${escapeHtml(r.name)}${
+              r.isGuest ? `<span style="color:#9ca3af;font-size:12px;margin-left:6px;">guest</span>` : ""
+            }</li>`
+        )
+        .join("")
+    : `<li style="padding:2px 0;color:#6b7280;">No one yet</li>`;
+  return `
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 16px 0;width:100%;background-color:#f9fafb;border-radius:8px;">
+          <tr><td style="padding:14px 16px;">
+            <p style="margin:0 0 4px 0;font-size:13px;color:#6b7280;text-transform:uppercase;letter-spacing:0.04em;">Sim</p>
+            <p style="margin:0 0 10px 0;font-size:16px;font-weight:600;">${escapeHtml(venue)}</p>
+            <p style="margin:0 0 4px 0;font-size:13px;color:#6b7280;text-transform:uppercase;letter-spacing:0.04em;">When</p>
+            <p style="margin:0 0 10px 0;font-size:16px;font-weight:600;">${escapeHtml(when)}</p>
+            <p style="margin:0 0 4px 0;font-size:13px;color:#6b7280;text-transform:uppercase;letter-spacing:0.04em;">In so far</p>
+            <ul style="list-style:none;padding:0;margin:0;">${rosterHtml}</ul>
+          </td></tr>
+        </table>`;
+}
+
+/**
+ * To a hosted venue's host: a sim night at their place needs their OK —
+ * either the auto-proposed standing night (requestedByName null) or a
+ * member's request.
+ */
+export function simNightRequestEmail(opts: {
+  hostName: string;
+  venue: string;
+  teeOffAt: Date;
+  requestedByName: string | null;
+  roster: RosterEntry[];
+  onUrl: string;
+  offUrl: string;
+  editUrl: string;
+  unsubscribeUrl: string;
+}) {
+  const { hostName, venue, teeOffAt, requestedByName, roster, onUrl, offUrl, editUrl, unsubscribeUrl } = opts;
+  const when = formatTeeOff(teeOffAt);
+  const ask = requestedByName
+    ? `${requestedByName} wants to get on the sim at your place.`
+    : `Your standing sim night is coming up.`;
+  const subject = `${venue} — ${when}? Your call`;
+
+  const text =
+    `Hi ${hostName},\n\n` +
+    `${ask} Is it on?\n\n` +
+    `When: ${when}\n` +
+    `In so far: ${roster.map((r) => r.name).join(", ") || "no one yet"}\n\n` +
+    `It's on: ${onUrl}\n` +
+    `Not this time: ${offUrl}\n` +
+    `Different time? Change it here: ${editUrl}\n`;
+
+  const html = shell(
+    `
+        <p style="margin:0 0 12px 0;">Hi ${escapeHtml(hostName)},</p>
+        <p style="margin:0 0 16px 0;">${escapeHtml(ask)} Is it on?</p>
+        ${simNightCard(venue, when, roster)}
+        <div>${btn("It's on", onUrl)}${btnSecondary("Not this time", offUrl)}</div>
+        <p style="margin:14px 0 0 0;font-size:13px;color:#6b7280;">Different time works better? <a href="${editUrl}" style="color:${BRAND_GREEN};">Change it in the app</a>, then hit It's on.</p>
+`,
+    { unsubscribeUrl }
+  );
+
+  return { subject, text, html };
+}
+
+/** To the people on a hosted sim night: the host turned it on or off. */
+export function simNightStatusEmail(opts: {
+  recipientName: string;
+  hostName: string;
+  venue: string;
+  teeOffAt: Date;
+  on: boolean;
+  roster: RosterEntry[];
+  detailUrl: string;
+  unsubscribeUrl: string;
+}) {
+  const { recipientName, hostName, venue, teeOffAt, on, roster, detailUrl, unsubscribeUrl } = opts;
+  const when = formatTeeOff(teeOffAt);
+  const subject = on
+    ? `It's on — ${venue}, ${when}`
+    : `Not happening — ${venue}, ${when}`;
+  const line = on
+    ? `${hostName} confirmed the sim night. See you there.`
+    : `${hostName} can't host this one, so it's off.`;
+
+  const text =
+    `Hi ${recipientName},\n\n` +
+    `${line}\n\n` +
+    `${venue} — ${when}\n\n` +
+    `Details: ${detailUrl}\n`;
+
+  const html = shell(
+    `
+        <p style="margin:0 0 12px 0;">Hi ${escapeHtml(recipientName)},</p>
+        <p style="margin:0 0 16px 0;">${escapeHtml(line)}</p>
+        ${simNightCard(venue, when, roster)}
+        <div>${btn("View sim night", detailUrl)}</div>
 `,
     { unsubscribeUrl }
   );

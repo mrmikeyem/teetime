@@ -9,10 +9,22 @@ export default async function NewTeeTimeServerPage() {
   const session = await auth();
   if (!session) redirect("/login");
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { weeknightDefault: true, weekendDefault: true },
-  });
+  const [user, venues] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { weeknightDefault: true, weekendDefault: true },
+    }),
+    prisma.simVenue.findMany({
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+      select: {
+        id: true,
+        name: true,
+        hostUserId: true,
+        standingTime: true,
+        host: { select: { name: true } },
+      },
+    }),
+  ]);
 
   return (
     <NewTeeTimePage
@@ -20,6 +32,13 @@ export default async function NewTeeTimeServerPage() {
         weeknight: user?.weeknightDefault ?? null,
         weekend: user?.weekendDefault ?? null,
       }}
+      venues={venues.map((v) => ({
+        id: v.id,
+        name: v.name,
+        hostUserId: v.hostUserId,
+        hostName: v.host?.name ?? null,
+        standingTime: v.standingTime,
+      }))}
     />
   );
 }

@@ -18,8 +18,20 @@ enum UserRole {
 enum TeeTimeType {
   TEE_TIME
   TOURNAMENT
+  SIM
 
   @@map("tee_time_type")
+}
+
+// Only set on SIM tee times at a HOSTED venue (someone's house): PENDING =
+// waiting on the host, CONFIRMED = on, CANCELLED = host said not this time.
+// Null everywhere else (a public venue / regular tee time is simply "on").
+enum SimNightStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+
+  @@map("sim_night_status")
 }
 
 enum TournamentFormat {
@@ -86,6 +98,7 @@ model User {
   enteredScores       EventScore[]            @relation("ScoreEnteredBy")
   simPlayer           SimPlayer?
   simPlaysLogged      SimPlay[]               @relation("SimPlayLoggedBy")
+  hostedSimVenues     SimVenue[]              @relation("SimVenueHost")
 
   @@map("users")
 }
@@ -224,6 +237,8 @@ model TeeTime {
   lon            Float?
   notes          String?
   eventRoundId   String?           @map("event_round_id") @db.Uuid
+  simVenueId     String?           @map("sim_venue_id") @db.Uuid
+  simStatus      SimNightStatus?   @map("sim_status")
   createdBy      String            @map("created_by") @db.Uuid
   createdAt      DateTime          @default(now()) @map("created_at")
   updatedAt      DateTime          @updatedAt @map("updated_at")
@@ -231,10 +246,33 @@ model TeeTime {
   creator    User        @relation("CreatedBy", fields: [createdBy], references: [id])
   members    TeeTimeMember[]
   eventRound EventRound? @relation(fields: [eventRoundId], references: [id], onDelete: SetNull)
+  simVenue   SimVenue?   @relation(fields: [simVenueId], references: [id])
 
   @@index([teeOffAt])
   @@index([eventRoundId])
+  @@index([simVenueId, teeOffAt])
   @@map("tee_times")
+}
+
+// A simulator venue for SIM tee times. With a host (a member's garage), every
+// night there is the host's call: others' requests start PENDING, and the
+// optional standing night is auto-proposed each Monday for the host to OK.
+// Without a host (Albatros) it books like a normal course.
+model SimVenue {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String   @unique
+  hostUserId   String?  @map("host_user_id") @db.Uuid
+  // Standing weekly night in America/Chicago: 0=Sun..6=Sat + "HH:MM".
+  standingDay  Int?     @map("standing_day")
+  standingTime String?  @map("standing_time")
+  sortOrder    Int      @default(0) @map("sort_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  host     User?     @relation("SimVenueHost", fields: [hostUserId], references: [id], onDelete: SetNull)
+  teeTimes TeeTime[]
+
+  @@map("sim_venues")
 }
 
 model TeeTimeMember {

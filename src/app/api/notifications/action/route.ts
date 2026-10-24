@@ -6,15 +6,24 @@ import {
   declineOrLeaveMembership,
   joinTeeTime,
 } from "@/lib/tee-time-actions";
+import { confirmSimNight, cancelSimNight } from "@/lib/sim-nights";
 import { getResolvedFeed, type ActionState } from "@/lib/notification-feed";
 
-type InlineAction = "confirm" | "decline" | "join" | "leave";
+type InlineAction =
+  | "confirm"
+  | "decline"
+  | "join"
+  | "leave"
+  | "sim_on"
+  | "sim_off";
 
 const VALID: ReadonlySet<string> = new Set([
   "confirm",
   "decline",
   "join",
   "leave",
+  "sim_on",
+  "sim_off",
 ]);
 
 /**
@@ -29,6 +38,8 @@ const REQUIRED_STATE: Record<InlineAction, ActionState> = {
   decline: "confirmable",
   join: "joinable",
   leave: "confirmed",
+  sim_on: "host_pending",
+  sim_off: "host_pending",
 };
 
 /**
@@ -90,6 +101,8 @@ export async function POST(req: Request) {
     if (act === "confirm") await confirmMembership(userId, item.teeTimeId);
     else if (act === "decline" || act === "leave")
       await declineOrLeaveMembership(userId, item.teeTimeId);
+    else if (act === "sim_on") await confirmSimNight(userId, item.teeTimeId);
+    else if (act === "sim_off") await cancelSimNight(userId, item.teeTimeId);
     else await joinTeeTime(userId, item.teeTimeId);
   } catch (err) {
     const message =

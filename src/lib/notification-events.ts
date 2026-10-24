@@ -6,6 +6,8 @@ import {
   joinedTeeTimeEmail,
   leftTeeTimeEmail,
   newTeeTimeAvailableEmail,
+  simNightRequestEmail,
+  simNightStatusEmail,
   type RosterEntry,
 } from "@/lib/email-templates";
 import { shouldNotify, filterEligibleUsers } from "@/lib/notifications";
@@ -322,6 +324,12 @@ export async function notifyNewTeeTime(opts: {
     if (!teeTime) return;
     if (teeTime.teeOffAt.getTime() < Date.now()) return;
 
+    // A hosted sim night isn't news until the host says it's on —
+    // confirmSimNight calls back in here at that point.
+    if (teeTime.simStatus === "PENDING" || teeTime.simStatus === "CANCELLED") {
+      return;
+    }
+
     // Skip broadcast for tournaments — they have unlimited capacity and
     // would spam everyone on every new tournament. Tournament discovery
     // happens via the calendar/list, not email.
@@ -416,4 +424,221 @@ export async function notifyNewTeeTime(opts: {
   } catch (err) {
     console.error("[notifyNewTeeTime] failed:", err);
   }
+}
+
+/**
+ * Ask a hosted venue's host to OK a PENDING sim night (the auto-proposed
+ * standing night, or a member's request). Carries It's on / Not this time
+ * links. Feed always; email + push gated on the host's addedTo pref.
+ */
+export async function notifySimNightRequest(opts: {
+  teeTimeId: string;
+  requestedByUserId: string | null;
+}) {
+  try {
+    const { teeTimeId, requestedByUserId } = opts;
+
+    const teeTime = await prisma.teeTime.findUnique({
+      where: { id: teeTimeId },
+      include: {
+        simVenue: {
+          select: { host: { select: { id: true, name: true, email: true } } },
+        },
+        members: {
+          include: {
+            user: { select: { name: true } },
+            guest: { select: { name: true } },
+          },
+          orderBy: { createdAt: "asc" },
+        },
+      },
+    });
+    const host = teeTime?.simVenue?.host;
+    if (!teeTime || !host || teeTime.simStatus !== "PENDING") return;
+    if (teeTime.teeOffAt.getTime() < Date.now()) return;
+
+    const requester =
+      requestedByUserId && requestedByUserId !== host.id
+        ? await prisma.user.findUnique({
+            where: { id: requestedByUserId },
+            select: { name: true },
+          })
+        : null;
+
+    const detailUrl = `/tee-times/${teeTime.id}`;
+    const title = requester
+      ? `${requester.name} wants a sim night at your place`
+      : "Your standing sim night — is it on?";
+    const body = `${teeTime.course} · ${formatWhen(teeTime.teeOffAt)}`;
+
+    await recordNotification({
+      userId: host.id,
+      type: "simRequest",
+      title,
+      body,
+      url: detailUrl,
+    });
+
+    const ttlMs = Math.min(
+      INVITE_ACTION_TTL_MS,
+      teeTime.teeOffAt.getTime() + 60 * 60 * 1000 - Date.now()
+    );
+    if (ttlMs <= 0) return;
+
+    const eligible = await shouldNotify(host.id, "addedTo");
+    if (!eligible || !host.email) return;
+
+    const roster: RosterEntry[] = teeTime.members.map((m) => ({
+      name: m.user?.name ?? m.guest?.name ?? "(unknown)",
+      confirmed: m.confirmed,
+      isGuest: !!m.guestId,
+    }));
+
+    const [on, off, unsubscribe] = await Promise.all([
+      mintToken({ userId: host.id, action: "sim_on", teeTimeId, ttlMs }),
+      mintToken({ userId: host.id, action: "sim_off", teeTimeId, ttlMs }),
+      mintToken({ userId: host.id, action: "unsubscribe", ttlMs: UNSUBSCRIBE_TTL_MS }),
+    ]);
+
+    const { subject, text, html } = simNightRequestEmail({
+      hostName: host.name,
+      venue: teeTime.course,
+      teeOffAt: teeTime.teeOffAt,
+      requestedByName: requester?.name ?? null,
+      roster,
+      onUrl: buildActionUrl(on.rawToken, "sim_on"),
+      offUrl: buildActionUrl(off.rawToken, "sim_off"),
+      editUrl: `${APP_URL}${detailUrl}/edit`,
+      unsubscribeUrl: buildActionUrl(unsubscribe.rawToken, "unsubscribe"),
+    });
+
+    await sendMail({ to: host.email, subject, text, html, kind: "sim-night-request" });
+
+    sendPushToUser(host.id, {
+      title,
+      body,
+      url: detailUrl,
+      tag: `sim-request-${teeTime.id}`,
+    }).catch((err) => console.error("[push] simNightRequest failed:", err));
+  } catch (err) {
+    console.error("[notifySimNightRequest] failed:", err);
+  }
+}
+
+/**
+ * The host turned a sim night on or off: tell everyone on it (minus the
+ * host). Turning it ON also runs the normal new-tee-time broadcast so the
+ * rest of the group hears there's room.
+ */
+export async function notifySimNightStatus(opts: {
+  teeTimeId: string;
+  on: boolean;
+}) {
+  try {
+    const { teeTimeId, on } = opts;
+
+    const teeTime = await prisma.teeTime.findUnique({
+      where: { id: teeTimeId },
+      include: {
+        simVenue: { select: { host: { select: { id: true, name: true } } } },
+        members: {
+          include: {
+            user: { select: { id: true, name: true, email: true } },
+            guest: { select: { name: true } },
+          },
+          orderBy: { createdAt: "asc" },
+        },
+      },
+    });
+    const host = teeTime?.simVenue?.host;
+    if (!teeTime || !host) return;
+    if (teeTime.teeOffAt.getTime() < Date.now()) return;
+
+    const detailUrl = `/tee-times/${teeTime.id}`;
+    const title = on
+      ? `It's on — ${teeTime.course}`
+      : `Off — ${teeTime.course}`;
+    const body = on
+      ? `${host.name} confirmed ${formatWhen(teeTime.teeOffAt)}`
+      : `${host.name} can't host ${formatWhen(teeTime.teeOffAt)}`;
+
+    const targetUserIds = teeTime.members
+      .map((m) => m.userId)
+      .filter((id): id is string => !!id && id !== host.id);
+
+    await Promise.all(
+      targetUserIds.map((userId) =>
+        recordNotification({
+          userId,
+          type: on ? "simOn" : "simOff",
+          title,
+          body,
+          url: detailUrl,
+        })
+      )
+    );
+
+    const roster: RosterEntry[] = teeTime.members.map((m) => ({
+      name: m.user?.name ?? m.guest?.name ?? "(unknown)",
+      confirmed: m.confirmed,
+      isGuest: !!m.guestId,
+    }));
+
+    const eligibleIds = new Set(await filterEligibleUsers(targetUserIds, "addedTo"));
+    const recipients = teeTime.members
+      .map((m) => m.user)
+      .filter(
+        (u): u is { id: string; name: string; email: string } =>
+          !!u && eligibleIds.has(u.id) && !!u.email
+      );
+
+    const results = await Promise.allSettled(
+      recipients.map(async (r) => {
+        const unsubscribe = await mintToken({
+          userId: r.id,
+          action: "unsubscribe",
+          ttlMs: UNSUBSCRIBE_TTL_MS,
+        });
+        const { subject, text, html } = simNightStatusEmail({
+          recipientName: r.name,
+          hostName: host.name,
+          venue: teeTime.course,
+          teeOffAt: teeTime.teeOffAt,
+          on,
+          roster,
+          detailUrl: `${APP_URL}${detailUrl}`,
+          unsubscribeUrl: buildActionUrl(unsubscribe.rawToken, "unsubscribe"),
+        });
+        await sendMail({
+          to: r.email,
+          subject,
+          text,
+          html,
+          kind: on ? "sim-night-on" : "sim-night-off",
+        });
+        sendPushToUser(r.id, {
+          title,
+          body,
+          url: detailUrl,
+          tag: `sim-status-${teeTime.id}`,
+        }).catch((err) => console.error("[push] simNightStatus failed:", err));
+      })
+    );
+    logFanOutFailures("notifySimNightStatus", recipients, results);
+
+    if (on) {
+      await notifyNewTeeTime({ teeTimeId, bookerUserId: host.id });
+    }
+  } catch (err) {
+    console.error("[notifySimNightStatus] failed:", err);
+  }
+}
+
+function formatWhen(d: Date) {
+  return d.toLocaleString("en-US", {
+    weekday: "short",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "America/Chicago",
+  });
 }

@@ -8,6 +8,8 @@ type ActionKey =
   | "leave"
   | "join"
   | "cancel_teetime"
+  | "sim_on"
+  | "sim_off"
   | "unsubscribe";
 
 const ACTION_LABELS: Record<ActionKey, { heading: string; body: string; cta: string; cancel?: string }> = {
@@ -35,6 +37,16 @@ const ACTION_LABELS: Record<ActionKey, { heading: string; body: string; cta: str
     heading: "Cancel this tee time",
     body: "This removes the tee time for the whole group, not just you. This can't be undone.",
     cta: "Cancel the tee time",
+  },
+  sim_on: {
+    heading: "Sim night is on",
+    body: "Everyone on it gets told it's happening, and the rest of the group hears there's room.",
+    cta: "It's on",
+  },
+  sim_off: {
+    heading: "Not this time",
+    body: "Everyone on it gets told it's off. You can turn it back on from the app.",
+    cta: "It's off",
   },
   unsubscribe: {
     heading: "Unsubscribe from all emails",
@@ -116,7 +128,7 @@ export default async function EmailActionPage({
 }
 
 function isValidAction(s: string): s is ActionKey {
-  return ["confirm", "decline", "leave", "join", "cancel_teetime", "unsubscribe"].includes(s);
+  return ["confirm", "decline", "leave", "join", "cancel_teetime", "sim_on", "sim_off", "unsubscribe"].includes(s);
 }
 
 function formatTeeOff(date: Date) {

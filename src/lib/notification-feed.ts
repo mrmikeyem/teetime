@@ -17,7 +17,10 @@ export type FeedType =
   | "left"
   | "newTeeTime"
   | "reminder"
-  | "announcement";
+  | "announcement"
+  | "simRequest"
+  | "simOn"
+  | "simOff";
 
 /**
  * Record one in-app notification for one user. Fire-and-forget from the
@@ -97,6 +100,8 @@ export async function recordNotificationOnce(opts: {
  *  - already_on:  a "new tee time" you've since joined
  *  - past:        tee-off already passed
  *  - gone:        tee time was deleted
+ *  - host_pending: (host only) a sim night at your place awaiting your call
+ *  - called_off:  the host called the sim night off
  *  - none:        informational only (someone joined/left)
  */
 export type ActionState =
@@ -107,6 +112,8 @@ export type ActionState =
   | "already_on"
   | "past"
   | "gone"
+  | "host_pending"
+  | "called_off"
   | "none";
 
 export type ResolvedFeedItem = {
@@ -160,6 +167,7 @@ export async function getResolvedFeed(
           id: true,
           partySize: true,
           teeOffAt: true,
+          simStatus: true,
           _count: { select: { members: true } },
           members: {
             where: { userId },
@@ -191,6 +199,7 @@ export async function getResolvedFeed(
 type TeeTimeLite = {
   partySize: number | null;
   teeOffAt: Date;
+  simStatus: string | null;
   _count: { members: number };
   members: { confirmed: boolean }[];
 };
@@ -201,13 +210,23 @@ function resolveActionState(
   byId: Map<string, TeeTimeLite>
 ): ActionState {
   // Informational types never carry an action.
-  if (type === "joined" || type === "left" || type === "announcement")
+  if (
+    type === "joined" ||
+    type === "left" ||
+    type === "announcement" ||
+    type === "simOff"
+  )
     return "none";
   if (!teeTimeId) return "none";
 
   const tt = byId.get(teeTimeId);
   if (!tt) return "gone";
   if (tt.teeOffAt.getTime() < Date.now()) return "past";
+  if (tt.simStatus === "CANCELLED") return "called_off";
+
+  if (type === "simRequest") {
+    return tt.simStatus === "PENDING" ? "host_pending" : "none";
+  }
 
   const membership = tt.members[0];
   const isMember = membership != null;
@@ -221,7 +240,7 @@ function resolveActionState(
     return "joinable";
   }
 
-  // addedTo / reminder → confirm flow.
+  // addedTo / reminder / simOn → confirm flow.
   if (!isMember) return "gone"; // you're no longer on it; nothing to confirm
   return membership.confirmed ? "confirmed" : "confirmable";
 }

@@ -75,6 +75,14 @@ export async function joinTeeTime(
   userId: string,
   teeTimeId: string
 ): Promise<void> {
+  const teeTime = await prisma.teeTime.findUnique({
+    where: { id: teeTimeId },
+    select: { simStatus: true },
+  });
+  if (!teeTime) throw new Error("Tee time not found.");
+  if (teeTime.simStatus === "CANCELLED") {
+    throw new Error("The host called this sim night off.");
+  }
   const existing = await prisma.teeTimeMember.findFirst({
     where: { teeTimeId, userId },
   });

@@ -26,6 +26,7 @@ export function parseTournamentFields(
   // Type: default TEE_TIME
   let type: TeeTimeType = TeeTimeType.TEE_TIME;
   if (body.type === "TOURNAMENT") type = TeeTimeType.TOURNAMENT;
+  else if (body.type === "SIM") type = TeeTimeType.SIM;
   else if (body.type && body.type !== "TEE_TIME") {
     return { error: "Invalid type" };
   }
