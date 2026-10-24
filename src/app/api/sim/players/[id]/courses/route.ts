@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { broadcastChange } from "@/lib/events";
-import { findOrCreateCourse, parseCourseInput, requireSimApi } from "@/lib/sim";
+import { canEditList, findOrCreateCourse, parseCourseInput, requireSimApi } from "@/lib/sim";
+
+const NOT_YOURS = "You can only change your own course list";
 
 /** Add a course to the end of a player's list. */
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { error } = await requireSimApi();
+  const { viewer, error } = await requireSimApi();
   if (error) return error;
   const { id: playerId } = await params;
   const course = parseCourseInput(await req.json());
@@ -18,10 +20,13 @@ export async function POST(
 
   const player = await prisma.simPlayer.findFirst({
     where: { id: playerId, archivedAt: null },
-    select: { id: true },
+    select: { id: true, userId: true, guestId: true },
   });
   if (!player) {
     return NextResponse.json({ error: "Player not found" }, { status: 404 });
+  }
+  if (!canEditList(viewer, player)) {
+    return NextResponse.json({ error: NOT_YOURS }, { status: 403 });
   }
 
   try {
@@ -51,12 +56,23 @@ export async function PUT(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { error } = await requireSimApi();
+  const { viewer, error } = await requireSimApi();
   if (error) return error;
   const { id: playerId } = await params;
   const { entryIds } = await req.json();
   if (!Array.isArray(entryIds) || !entryIds.every((x) => typeof x === "string")) {
     return NextResponse.json({ error: "entryIds required" }, { status: 400 });
+  }
+
+  const owner = await prisma.simPlayer.findUnique({
+    where: { id: playerId },
+    select: { userId: true, guestId: true },
+  });
+  if (!owner) {
+    return NextResponse.json({ error: "Player not found" }, { status: 404 });
+  }
+  if (!canEditList(viewer, owner)) {
+    return NextResponse.json({ error: NOT_YOURS }, { status: 403 });
   }
 
   const existing = await prisma.simListEntry.findMany({

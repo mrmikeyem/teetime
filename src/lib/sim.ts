@@ -35,6 +35,23 @@ export async function requireSimApi(opts: { admin?: boolean } = {}) {
   return { viewer };
 }
 
+type SimViewer = NonNullable<Awaited<ReturnType<typeof getSimViewer>>>;
+
+/**
+ * Course lists are personal: only the player can add / remove / reorder
+ * their own courses — admins included, so nobody edits someone else's
+ * list. Guests can't log in, so admins manage guest lists.
+ */
+export function canEditList(viewer: SimViewer, player: { userId: string | null; guestId: string | null }): boolean {
+  if (player.userId) return player.userId === viewer.id;
+  return viewer.isAdmin;
+}
+
+/** Removing a player wipes their list: admins, or the player themselves. */
+export function canRemovePlayer(viewer: SimViewer, player: { userId: string | null }): boolean {
+  return viewer.isAdmin || player.userId === viewer.id;
+}
+
 export async function getSimSettings(db: Db = prisma): Promise<WheelSettings> {
   const s = await db.simSettings.upsert({
     where: { id: 1 },
@@ -135,6 +152,7 @@ export async function getSimHub() {
     players: rows.map((p) => ({
       ...toWheelPlayer(p),
       isGuest: !!p.guestId,
+      userId: p.userId,
       list: p.list.map((e) => ({
         entryId: e.id,
         courseId: e.courseId,

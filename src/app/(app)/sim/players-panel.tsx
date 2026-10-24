@@ -28,6 +28,8 @@ import { ErrorNote, Modal, simApi, type CoursePick, type HubEntry, type HubPlaye
 
 export function PlayersPanel({
   players,
+  viewerId,
+  isAdmin,
   settings,
   skipped,
   adjustTallies,
@@ -35,6 +37,8 @@ export function PlayersPanel({
   onInfo,
 }: {
   players: HubPlayer[];
+  viewerId: string;
+  isAdmin: boolean;
   settings: WheelSettings;
   skipped: ReadonlySet<string>;
   adjustTallies: boolean;
@@ -42,6 +46,9 @@ export function PlayersPanel({
   onInfo: (apiId: string) => void;
 }) {
   const router = useRouter();
+  // Mirrors canEditList / canRemovePlayer in lib/sim.ts (the API enforces it).
+  const canEdit = (p: HubPlayer) => (p.userId ? p.userId === viewerId : isAdmin);
+  const canRemove = (p: HubPlayer) => isAdmin || p.userId === viewerId;
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState<HubPlayer | null>(null);
@@ -81,6 +88,9 @@ export function PlayersPanel({
             >
               <PlayerCard
                 player={p}
+                isYou={p.userId === viewerId}
+                canEdit={canEdit(p)}
+                canRemove={canRemove(p)}
                 open={expanded.has(p.id)}
                 onToggleOpen={() =>
                   setExpanded((prev) => {
@@ -186,6 +196,9 @@ function AddPlayer({
 
 function PlayerCard({
   player,
+  isYou,
+  canEdit,
+  canRemove,
   open,
   onToggleOpen,
   showTally,
@@ -198,6 +211,9 @@ function PlayerCard({
   onLink,
 }: {
   player: HubPlayer;
+  isYou: boolean;
+  canEdit: boolean;
+  canRemove: boolean;
   open: boolean;
   onToggleOpen: () => void;
   showTally: boolean;
@@ -268,10 +284,11 @@ function PlayerCard({
         />
         <button type="button" onClick={onToggleOpen} className="min-w-0 flex-1 text-left font-semibold">
           {player.name}
-          {player.isGuest && <span className="sim-muted ml-1 text-xs font-normal">(guest)</span>}{" "}
+          {player.isGuest && <span className="sim-muted ml-1 text-xs font-normal">(guest)</span>}
+          {isYou && <span className="sim-muted ml-1 text-xs font-normal">(you)</span>}{" "}
           <span className="sim-muted font-normal">({player.list.length})</span>
         </button>
-        {!checked && (
+        {!checked && canRemove && (
           <button type="button" className="sim-btn sim-btn-danger px-2 py-1 text-xs" onClick={onDelete}>
             Delete
           </button>
@@ -304,6 +321,7 @@ function PlayerCard({
                     <CourseRow
                       key={entry.entryId}
                       entry={entry}
+                      canEdit={canEdit}
                       showTally={showTally}
                       adjustTallies={adjustTallies}
                       skipped={skipped.has(entry.courseId)}
@@ -315,6 +333,10 @@ function PlayerCard({
                   ))}
                 </SortableContext>
               </DndContext>
+              {!canEdit && (
+                <p className="sim-muted px-2 pt-1 text-xs">Only {player.name} can change this list.</p>
+              )}
+              {canEdit && (
               <form
                 className="flex gap-1.5 pt-1"
                 onSubmit={(e) => {
@@ -341,6 +363,7 @@ function PlayerCard({
                   Add
                 </button>
               </form>
+              )}
             </div>
           </motion.div>
         )}
@@ -364,6 +387,7 @@ function PlayerCard({
 
 function CourseRow({
   entry,
+  canEdit,
   showTally,
   adjustTallies,
   skipped,
@@ -373,6 +397,7 @@ function CourseRow({
   onLink,
 }: {
   entry: HubEntry;
+  canEdit: boolean;
   showTally: boolean;
   adjustTallies: boolean;
   skipped: boolean;
@@ -383,6 +408,7 @@ function CourseRow({
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: entry.entryId,
+    disabled: !canEdit,
   });
   const [armed, setArmed] = useState(false);
 
@@ -400,15 +426,17 @@ function CourseRow({
       }}
       className="flex items-center gap-2 rounded-md px-2 py-2"
     >
-      <button
-        type="button"
-        className="sim-muted cursor-grab touch-none px-1 active:cursor-grabbing"
-        aria-label={`Drag to reorder ${entry.courseName}`}
-        {...attributes}
-        {...listeners}
-      >
-        ☰
-      </button>
+      {canEdit && (
+        <button
+          type="button"
+          className="sim-muted cursor-grab touch-none px-1 active:cursor-grabbing"
+          aria-label={`Drag to reorder ${entry.courseName}`}
+          {...attributes}
+          {...listeners}
+        >
+          ☰
+        </button>
+      )}
       <div className="min-w-0 flex-1">
         <div className={`truncate text-sm font-semibold ${skipped ? "line-through" : ""}`}>{entry.courseName}</div>
         {entry.location && <div className="sim-muted truncate text-xs">{entry.location}</div>}
@@ -445,6 +473,7 @@ function CourseRow({
           ) : (
             <TallyBadge value={entry.tally} />
           ))}
+        {canEdit && (
         <button
           type="button"
           title={armed ? "Tap again to remove" : "Remove from list"}
@@ -461,6 +490,7 @@ function CourseRow({
         >
           {armed ? "Remove?" : "✕"}
         </button>
+        )}
       </div>
     </div>
   );
