@@ -152,8 +152,11 @@ Play/Skip (tally bumps + log + remove-from-EVERY-list) is one transaction.
 Session state (skips, by-person mode) is per-tab sessionStorage, never DB.
 Access = `User.simAccess` (default on, toggled on `/admin`), read from the DB
 via `getSimViewer()`/`requireSimApi()`. GolfCourseAPI (`lib/golf-course-api.ts`,
-`GOLFCOURSE_API_KEY`) is cache-first via `golf_course_cache`; no key = search
-off, cached details still served. The hourly cron's orphan-guest sweep MUST
+`GOLFCOURSE_API_KEY`, `Authorization: Bearer`) is cache-first via
+`golf_course_cache`; no key = search off, cached details still served. API ids
+are opaque 8-char strings; the old app's NUMERIC ids no longer resolve upstream
+and are served from the imported cache forever (`isLegacyApiId`). Search
+results carry tee COUNTS only — never cache them as course details. The hourly cron's orphan-guest sweep MUST
 keep skipping guests with a `simPlayer` (cascade would wipe their list).
 
 **Weather**: `lib/weather.ts` (Open-Meteo geocode + forecast, cached via

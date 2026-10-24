@@ -97,7 +97,7 @@ react-hook-form · Tailwind · `@anthropic-ai/sdk` (weather blurbs).
 | `sim-wheel.ts` | sim wheel odds engine (client-safe): eligibility (checked → minus session skips → top-N), combined slices, true probabilities for both modes, `pickSlice`, `landingRotation` |
 | `sim.ts` | sim server data: `getSimViewer`/`requireSimApi` (DB-read access flag), `getSimHub` (page payload), `findOrCreateCourse`, tee/course parsing |
 | `sim-actions.ts` | `resolveSpin` — Play/Skip in one transaction (server-recomputed wheel, tally bumps, log, remove from every list) |
-| `golf-course-api.ts` | GolfCourseAPI search + cache-first details (`golf_course_cache`) |
+| `golf-course-api.ts` | GolfCourseAPI v1.3 (Bearer auth) search + cache-first details (`golf_course_cache`); ids are opaque 8-char strings, legacy numeric ids from the old app are cache-only |
 | `tee-time-defaults.ts` | per-user new-tee-time defaults |
 
 ## Cross-cutting flows

@@ -54,7 +54,7 @@ export function SimHub({
   const [selection, setSelection] = useState<Selection | null>(null);
   const [teeOpen, setTeeOpen] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
-  const [infoApiId, setInfoApiId] = useState<number | null>(null);
+  const [infoApiId, setInfoApiId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [toast, setToast] = useState<string | null>(null);

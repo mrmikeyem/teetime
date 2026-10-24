@@ -413,7 +413,8 @@ model EmailLog {
 model SimCourse {
   id        String   @id @default(uuid()) @db.Uuid
   name      String
-  apiId     Int?     @unique @map("api_id")
+  // GolfCourseAPI id (opaque string; numeric = legacy id from the old app).
+  apiId     String?  @unique @map("api_id")
   city      String?
   state     String?
   country   String?
@@ -517,7 +518,7 @@ model SimSettings {
 
 // GolfCourseAPI course-detail cache (tees, ratings, holes).
 model GolfCourseCache {
-  apiId     Int      @id @map("api_id")
+  apiId     String   @id @map("api_id")
   payload   Json
   fetchedAt DateTime @default(now()) @map("fetched_at")
 

@@ -13,27 +13,27 @@ type ApiTee = {
   par_total?: number | null;
 };
 type ApiCourse = {
-  id: number;
+  id: string;
   club_name?: string;
   course_name?: string;
   location?: { city?: string; state?: string; country?: string };
   tees?: { male?: ApiTee[]; female?: ApiTee[] };
 };
 
-const detailsCache = new Map<number, ApiCourse>();
+const detailsCache = new Map<string, ApiCourse>();
 
-async function fetchDetails(apiId: number): Promise<ApiCourse | null> {
+async function fetchDetails(apiId: string): Promise<ApiCourse | null> {
   const hit = detailsCache.get(apiId);
   if (hit) return hit;
-  const res = await simApi<{ course: ApiCourse }>(`/api/sim/courses/details/${apiId}`, "GET");
+  const res = await simApi<{ course: ApiCourse }>(`/api/sim/courses/details/${encodeURIComponent(apiId)}`, "GET");
   if (!res.ok) return null;
   detailsCache.set(apiId, res.data.course);
   return res.data.course;
 }
 
 /** Course details for an API-linked course (null while loading / unlinked). */
-export function useCourseDetails(apiId: number | null) {
-  const [state, setState] = useState<{ apiId: number | null; course: ApiCourse | null; loading: boolean }>({
+export function useCourseDetails(apiId: string | null) {
+  const [state, setState] = useState<{ apiId: string | null; course: ApiCourse | null; loading: boolean }>({
     apiId: null,
     course: null,
     loading: false,
@@ -76,7 +76,7 @@ export function CourseSearchModal({
   title: string;
   asTyped: boolean;
   onPick: (course: CoursePick) => void;
-  onInfo: (apiId: number) => void;
+  onInfo: (apiId: string) => void;
 }) {
   return (
     <Modal open={open} onClose={onClose} title={title} wide>
@@ -93,7 +93,7 @@ export function CourseSearchModal({
   );
 }
 
-type Result = { apiId: number; name: string; city: string | null; state: string | null; country: string | null };
+type Result = { apiId: string; name: string; city: string | null; state: string | null; country: string | null };
 
 function SearchBody({
   initialQuery,
@@ -105,7 +105,7 @@ function SearchBody({
   initialQuery: string;
   asTyped: boolean;
   onPick: (course: CoursePick) => void;
-  onInfo: (apiId: number) => void;
+  onInfo: (apiId: string) => void;
   onCancel: () => void;
 }) {
   const [query, setQuery] = useState(initialQuery);
@@ -235,7 +235,7 @@ function SearchBody({
   );
 }
 
-export function CourseInfoModal({ apiId, onClose }: { apiId: number | null; onClose: () => void }) {
+export function CourseInfoModal({ apiId, onClose }: { apiId: string | null; onClose: () => void }) {
   return (
     <Modal open={apiId !== null} onClose={onClose}>
       {apiId !== null && <CourseInfoBody key={apiId} apiId={apiId} />}
@@ -243,7 +243,7 @@ export function CourseInfoModal({ apiId, onClose }: { apiId: number | null; onCl
   );
 }
 
-function CourseInfoBody({ apiId }: { apiId: number }) {
+function CourseInfoBody({ apiId }: { apiId: string }) {
   const { course, loading } = useCourseDetails(apiId);
   const [gender, setGender] = useState<"male" | "female">("male");
 
@@ -332,7 +332,7 @@ export function TeePicker({
   initial,
   onChange,
 }: {
-  apiId: number | null;
+  apiId: string | null;
   initial: TeePick | null;
   onChange: (tee: TeePick | null) => void;
 }) {

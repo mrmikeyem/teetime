@@ -9,7 +9,7 @@ ADD COLUMN     "sim_theme" TEXT;
 CREATE TABLE "sim_courses" (
     "id" UUID NOT NULL,
     "name" TEXT NOT NULL,
-    "api_id" INTEGER,
+    "api_id" TEXT,
     "city" TEXT,
     "state" TEXT,
     "country" TEXT,
@@ -87,7 +87,7 @@ CREATE TABLE "sim_settings" (
 
 -- CreateTable
 CREATE TABLE "golf_course_cache" (
-    "api_id" INTEGER NOT NULL,
+    "api_id" TEXT NOT NULL,
     "payload" JSONB NOT NULL,
     "fetched_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 

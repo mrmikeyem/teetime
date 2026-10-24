@@ -12,7 +12,7 @@ export type Selection = {
   manual: boolean;
 };
 
-export type CourseMeta = { apiId: number | null; location: string };
+export type CourseMeta = { apiId: string | null; location: string };
 
 /** The "🎯 Selected Course" card that springs up after a spin. */
 export function ResultSheet({
@@ -36,7 +36,7 @@ export function ResultSheet({
   onPlay: () => void;
   onSkip: () => void;
   onCancel: () => void;
-  onInfo: (apiId: number) => void;
+  onInfo: (apiId: string) => void;
 }) {
   return (
     <AnimatePresence>
@@ -166,7 +166,7 @@ export function TeeModal({
 }: {
   open: boolean;
   courseName: string;
-  apiId: number | null;
+  apiId: string | null;
   busy: boolean;
   error: string;
   onConfirm: (tee: TeePick | null) => void;
@@ -190,7 +190,7 @@ function TeeBody({
   onClose,
 }: {
   courseName: string;
-  apiId: number | null;
+  apiId: string | null;
   busy: boolean;
   error: string;
   onConfirm: (tee: TeePick | null) => void;

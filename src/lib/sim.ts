@@ -183,7 +183,7 @@ export type SimHubData = Awaited<ReturnType<typeof getSimHub>>;
 
 export type CourseInput = {
   name: string;
-  apiId?: number | null;
+  apiId?: string | null;
   city?: string | null;
   state?: string | null;
   country?: string | null;
@@ -196,10 +196,13 @@ export function parseCourseInput(raw: unknown): CourseInput | null {
   const name = typeof r.name === "string" ? r.name.trim() : "";
   if (!name) return null;
   const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
-  const apiId = Number(r.apiId);
+  // GolfCourseAPI ids are opaque strings now ("3j4b4ar8"); the old app's
+  // numeric ids survive as strings ("24469") and are served from cache.
+  const apiId =
+    typeof r.apiId === "string" || typeof r.apiId === "number" ? String(r.apiId).trim().toLowerCase() : "";
   return {
     name,
-    apiId: Number.isInteger(apiId) && apiId > 0 ? apiId : null,
+    apiId: /^[A-Za-z0-9]{1,32}$/.test(apiId) ? apiId : null,
     city: str(r.city),
     state: str(r.state),
     country: str(r.country),

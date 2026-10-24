@@ -181,8 +181,9 @@ export function ShotReveal({
         `translate(${-(cam.x - TEE_X) * 0.12} ${(392 - cam.y) * 0.35})`
       );
       const a = swingAngle(t);
-      armsRef.current?.setAttribute("transform", `rotate(${a} 3 -55)`);
-      torsoRef.current?.setAttribute("transform", `rotate(${a * 0.05} 0 -34)`);
+      armsRef.current?.setAttribute("transform", `rotate(${a} ${SHOULDER.x} ${SHOULDER.y})`);
+      // Hips/shoulders coil a little with the swing.
+      torsoRef.current?.setAttribute("transform", `rotate(${a * 0.04} 0 -33)`);
 
       const height = GROUND - ball.y;
       ballRef.current?.setAttribute("cx", String(ball.x));
@@ -289,7 +290,7 @@ export function ShotReveal({
           <circle cx={CUP_X} cy={FLAG_TOP - 3} r="1.8" fill="#f4f4f4" />
           <path ref={flagRef} fill={scene.flag} stroke="rgba(0,0,0,0.25)" strokeWidth="0.6" />
 
-          <Golfer color={scene.golfer} torsoRef={torsoRef} armsRef={armsRef} />
+          <Golfer color={scene.golfer} shirt={scene.flag} torsoRef={torsoRef} armsRef={armsRef} />
 
           <path ref={trailRef} fill="none" stroke="#ffffff" strokeWidth="1.3" strokeLinecap="round" strokeDasharray="0.1 5" />
           <ellipse ref={shadowRef} cy={GROUND + 0.8} ry="1.2" fill="#000000" />
@@ -382,27 +383,62 @@ function SlotText({ text }: { text: string }) {
   );
 }
 
+// Swing pivot (golfer-local coords): the lead shoulder.
+const SHOULDER = { x: 12.5, y: -54 };
+
 function Golfer({
   color,
+  shirt,
   torsoRef,
   armsRef,
 }: {
   color: string;
+  /** Shirt color (the theme's flag color — a red Sunday shirt in Classic). */
+  shirt: string;
   torsoRef: React.Ref<SVGGElement>;
   armsRef: React.Ref<SVGGElement>;
 }) {
-  // Feet at (0,0), facing the target (+x). Stylized silhouette.
+  // Filled silhouette in a real address posture: feet at (0,0), facing the
+  // target (+x), bent from the hips with flexed knees and the head over the
+  // ball. Arms + club pivot at the lead shoulder for the swing.
   return (
-    <g transform={`translate(${TEE_X} ${GROUND})`} stroke={color} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M -9 0 L -3 -18 L -2 -34 M 9 0 L 4 -18 L 2 -34" strokeWidth="6" fill="none" />
+    <g transform={`translate(${TEE_X} ${GROUND})`}>
+      {/* Shoes */}
+      <path d="M -12.5 0 Q -12.5 -3.6 -8.6 -3.6 L -3.8 -3.4 Q -2.6 -1.6 -3.2 0 Z" fill={color} />
+      <path d="M 4.4 0 Q 4.4 -3.6 7.6 -3.6 L 11.2 -3.4 Q 14.2 -2 14.2 0 Z" fill={color} />
+      {/* Legs — slight knee flex */}
+      <path
+        d="M -7.4 -34 Q -10.4 -25 -9.2 -17 L -9.4 -3.2 L -4.2 -3.2 L -4.6 -17 Q -3.6 -24.5 0 -28.8 Q 3.4 -24.5 4.4 -17.2 L 5 -3.2 L 10.4 -3.2 L 10.2 -17.4 Q 10 -27 6.4 -34.2 Z"
+        fill={color}
+      />
       <g ref={torsoRef}>
-        <path d="M 0 -34 L 3 -56" strokeWidth="11" />
-        <circle cx="6" cy="-66" r="6.5" fill={color} stroke="none" />
-        <path d="M 0 -70 Q 6 -76 12 -70 L 15 -69" strokeWidth="2.4" fill="none" />
+        {/* Torso, tilted toward the ball */}
+        <path
+          d="M -8.4 -32.8 L 0.2 -55.2 Q 3.6 -58.9 11.4 -57.8 Q 15.8 -56.9 14.8 -52.2 L 7.8 -32.8 Z"
+          fill={shirt}
+          stroke={color}
+          strokeWidth="0.6"
+        />
+        {/* Belt */}
+        <path d="M -8.6 -33.2 L 7.9 -33.2" stroke={color} strokeWidth="1.6" />
+        {/* Head + cap, eyes on the ball */}
+        <path d="M 12.4 -57 L 14.6 -60" stroke={color} strokeWidth="3.4" strokeLinecap="round" />
+        <circle cx="16.4" cy="-62" r="4.6" fill={color} />
+        <path
+          d="M 11.8 -63 Q 12.6 -68 16.9 -67.7 Q 20.6 -67.4 21 -63.9 L 24.6 -63.1 Q 24.8 -62 21 -62.1 L 11.9 -62.4 Z"
+          fill={shirt}
+          stroke={color}
+          strokeWidth="0.6"
+        />
         <g ref={armsRef}>
-          <path d="M 3 -55 L 13 -29" strokeWidth="5" />
-          <path d="M 13 -29 L 27 -2" strokeWidth="1.6" />
-          <path d="M 25 -2 L 31 -1" strokeWidth="3" />
+          {/* Trail arm, then lead arm on top */}
+          <path d="M 9.8 -53 L 15.6 -31.6" stroke={color} strokeWidth="4.2" strokeLinecap="round" />
+          <path d="M 12.5 -54 L 16.8 -31" stroke={color} strokeWidth="4.8" strokeLinecap="round" />
+          {/* Shaft (steel), grip, glove, clubhead */}
+          <path d="M 17 -30.4 L 20.8 -2.6" stroke="#c9ced3" strokeWidth="1.25" strokeLinecap="round" />
+          <path d="M 17 -30.6 L 17.8 -25" stroke={color} strokeWidth="2.3" strokeLinecap="round" />
+          <circle cx="16.9" cy="-30.6" r="2.3" fill="#ffffff" />
+          <path d="M 17.6 -3.3 L 23.4 -3 Q 24.6 -1.6 23.3 -0.5 L 18 -0.7 Q 16.9 -1.9 17.6 -3.3 Z" fill="#2b2f33" />
         </g>
       </g>
     </g>

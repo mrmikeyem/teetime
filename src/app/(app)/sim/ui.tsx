@@ -9,7 +9,7 @@ export type HubEntry = HubPlayer["list"][number];
 export type HubPlay = SimHubData["plays"][number];
 export type CoursePick = {
   name: string;
-  apiId: number | null;
+  apiId: string | null;
   city: string | null;
   state: string | null;
   country: string | null;

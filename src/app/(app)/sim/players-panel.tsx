@@ -39,7 +39,7 @@ export function PlayersPanel({
   skipped: ReadonlySet<string>;
   adjustTallies: boolean;
   memberCandidates: { id: string; name: string }[];
-  onInfo: (apiId: number) => void;
+  onInfo: (apiId: string) => void;
 }) {
   const router = useRouter();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -206,7 +206,7 @@ function PlayerCard({
   onWheel: Set<string>;
   run: (p: Promise<{ ok: boolean; error?: string }>) => Promise<boolean>;
   onDelete: () => void;
-  onInfo: (apiId: number) => void;
+  onInfo: (apiId: string) => void;
   onLink: (entry: HubEntry) => void;
 }) {
   const [checked, setChecked] = useState(player.checked);
@@ -378,7 +378,7 @@ function CourseRow({
   skipped: boolean;
   onWheel: boolean;
   run: (p: Promise<{ ok: boolean; error?: string }>) => Promise<boolean>;
-  onInfo: (apiId: number) => void;
+  onInfo: (apiId: string) => void;
   onLink: (entry: HubEntry) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({

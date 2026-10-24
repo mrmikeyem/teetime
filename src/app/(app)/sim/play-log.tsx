@@ -30,7 +30,7 @@ export function PlayLog({
   plays: HubPlay[];
   /** Active players — chip options for edit / manual entry. */
   players: PlayerOption[];
-  onInfo: (apiId: number) => void;
+  onInfo: (apiId: string) => void;
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -198,7 +198,7 @@ function EditPlayModal({
   play: HubPlay | null;
   players: PlayerOption[];
   onClose: () => void;
-  onInfo: (apiId: number) => void;
+  onInfo: (apiId: string) => void;
 }) {
   return (
     <Modal open={play !== null} onClose={onClose} title="✏️ Edit play log entry" wide>
@@ -216,7 +216,7 @@ function EditBody({
   play: HubPlay;
   options: PlayerOption[];
   onClose: () => void;
-  onInfo: (apiId: number) => void;
+  onInfo: (apiId: string) => void;
 }) {
   const router = useRouter();
   const initial = ctInputParts(play.playedAt);
@@ -433,7 +433,7 @@ function DeleteBody({ play, onClose, onDeleted }: { play: HubPlay; onClose: () =
 }
 
 /** Log a past round by hand (the old app's form here was broken). */
-function ManualEntry({ players, onInfo }: { players: PlayerOption[]; onInfo: (apiId: number) => void }) {
+function ManualEntry({ players, onInfo }: { players: PlayerOption[]; onInfo: (apiId: string) => void }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [course, setCourse] = useState<CoursePick>({ name: "", apiId: null, city: null, state: null, country: null });

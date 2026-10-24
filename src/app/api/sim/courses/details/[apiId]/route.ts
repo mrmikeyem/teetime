@@ -8,8 +8,8 @@ export async function GET(
 ) {
   const { error } = await requireSimApi();
   if (error) return error;
-  const apiId = Number((await params).apiId);
-  if (!Number.isInteger(apiId) || apiId <= 0) {
+  const apiId = (await params).apiId;
+  if (!/^[A-Za-z0-9]{1,32}$/.test(apiId)) {
     return NextResponse.json({ error: "Invalid course id" }, { status: 400 });
   }
   try {
