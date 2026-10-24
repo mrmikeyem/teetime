@@ -1,0 +1,62 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { broadcastChange } from "@/lib/events";
+import { requireSimApi } from "@/lib/sim";
+
+/** Check / uncheck a player ("playing tonight"). */
+export async function PATCH(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { error } = await requireSimApi();
+  if (error) return error;
+  const { id } = await params;
+  const { checked } = await req.json();
+  if (typeof checked !== "boolean") {
+    return NextResponse.json({ error: "checked (boolean) required" }, { status: 400 });
+  }
+  const result = await prisma.simPlayer.updateMany({
+    where: { id, archivedAt: null },
+    data: { checked },
+  });
+  if (result.count === 0) {
+    return NextResponse.json({ error: "Player not found" }, { status: 404 });
+  }
+  broadcastChange();
+  return NextResponse.json({ ok: true });
+}
+
+/**
+ * Remove a player and their course list. Players with play history are
+ * archived (the log keeps their name); others are deleted outright.
+ */
+export async function DELETE(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { error } = await requireSimApi();
+  if (error) return error;
+  const { id } = await params;
+
+  const player = await prisma.simPlayer.findUnique({
+    where: { id },
+    select: { id: true, _count: { select: { plays: true } } },
+  });
+  if (!player) {
+    return NextResponse.json({ error: "Player not found" }, { status: 404 });
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.simListEntry.deleteMany({ where: { playerId: id } });
+    if (player._count.plays > 0) {
+      await tx.simPlayer.update({
+        where: { id },
+        data: { archivedAt: new Date(), checked: false },
+      });
+    } else {
+      await tx.simPlayer.delete({ where: { id } });
+    }
+  });
+  broadcastChange();
+  return NextResponse.json({ ok: true });
+}

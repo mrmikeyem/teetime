@@ -197,8 +197,10 @@ async function runCleanup(now: Date) {
 
   // Orphaned guests = guests with no remaining tee_time_members rows.
   // The TeeTimeMember rows for the deleted tee times were cascade-deleted above.
+  // Sim-wheel guests live outside tee times — deleting one would cascade away
+  // their wheel player and course list, so they're never orphans.
   const orphans = await prisma.guest.deleteMany({
-    where: { teeTimeMembers: { none: {} } },
+    where: { teeTimeMembers: { none: {} }, simPlayer: { is: null } },
   });
 
   return {

@@ -11,5 +11,6 @@ export const config = {
     "/teams/:path*",
     "/whats-new/:path*",
     "/events/:path*",
+    "/sim/:path*",
   ],
 };

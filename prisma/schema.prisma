@@ -39,6 +39,13 @@ enum EventStandingsMode {
   @@map("event_standings_mode")
 }
 
+enum SimTallyMode {
+  ADDITIVE
+  MULTIPLIER
+
+  @@map("sim_tally_mode")
+}
+
 enum EventGameType {
   CLOSEST_TO_PIN
   LONG_DRIVE
@@ -59,6 +66,8 @@ model User {
   calendarFeedToken  String?   @unique @map("calendar_feed_token")
   weeknightDefault   String?   @map("weeknight_default")
   weekendDefault     String?   @map("weekend_default")
+  simAccess          Boolean   @default(true) @map("sim_access")
+  simTheme           String?   @map("sim_theme")
   createdAt          DateTime  @default(now()) @map("created_at")
   updatedAt          DateTime  @updatedAt @map("updated_at")
 
@@ -75,6 +84,8 @@ model User {
   createdEvents       Event[]                 @relation("EventCreatedBy")
   eventParticipations EventParticipant[]      @relation("EventParticipantUser")
   enteredScores       EventScore[]            @relation("ScoreEnteredBy")
+  simPlayer           SimPlayer?
+  simPlaysLogged      SimPlay[]               @relation("SimPlayLoggedBy")
 
   @@map("users")
 }
@@ -190,6 +201,7 @@ model Guest {
 
   adder           User            @relation("GuestAddedBy", fields: [addedBy], references: [id])
   teeTimeMembers  TeeTimeMember[] @relation("GuestMembership")
+  simPlayer       SimPlayer?
 
   @@map("guests")
 }
@@ -392,4 +404,123 @@ model EmailLog {
 
   @@index([createdAt])
   @@map("email_log")
+}
+
+// ── Sim wheel (winter simulator course picker, /sim) ─────────────────────
+
+// Canonical course — one row per real course, shared by every player's list
+// and the play log, so combined slices and "last played" key on the id.
+model SimCourse {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  // GolfCourseAPI id (opaque string; numeric = legacy id from the old app).
+  apiId     String?  @unique @map("api_id")
+  city      String?
+  state     String?
+  country   String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  listEntries SimListEntry[]
+  plays       SimPlay[]
+
+  @@map("sim_courses")
+}
+
+// A wheel participant: a member OR a guest (exactly one — CHECK constraint
+// in the migration, same pattern as tee_time_members). `checked` = playing
+// tonight; it's shared state, like the old app.
+model SimPlayer {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String?   @unique @map("user_id") @db.Uuid
+  guestId    String?   @unique @map("guest_id") @db.Uuid
+  checked    Boolean   @default(false)
+  archivedAt DateTime? @map("archived_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  user  User?           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  guest Guest?          @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  list  SimListEntry[]
+  plays SimPlayPlayer[]
+
+  @@map("sim_players")
+}
+
+// One course on one player's list; `position` is the drag order.
+model SimListEntry {
+  id        String   @id @default(uuid()) @db.Uuid
+  playerId  String   @map("player_id") @db.Uuid
+  courseId  String   @map("course_id") @db.Uuid
+  position  Int
+  tally     Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  player SimPlayer @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  course SimCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, courseId])
+  @@index([playerId, position])
+  @@map("sim_list_entries")
+}
+
+model SimPlay {
+  id        String   @id @default(uuid()) @db.Uuid
+  courseId  String   @map("course_id") @db.Uuid
+  playedAt  DateTime @map("played_at")
+  // Logged without a time of day (manual entries) — display the date only.
+  dateOnly  Boolean  @default(false) @map("date_only")
+  // wheel | manual_play | manual_entry | import
+  source    String   @default("wheel")
+  teeName   String?  @map("tee_name")
+  teeRating Decimal? @db.Decimal(4, 1) @map("tee_rating")
+  teeSlope  Int?     @map("tee_slope")
+  teeYards  Int?     @map("tee_yards")
+  comment   String?
+  loggedBy  String?  @map("logged_by") @db.Uuid
+  // Id from the old app's data.json — keeps the one-off import idempotent.
+  legacyId  String?  @unique @map("legacy_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  course  SimCourse       @relation(fields: [courseId], references: [id])
+  logger  User?           @relation("SimPlayLoggedBy", fields: [loggedBy], references: [id], onDelete: SetNull)
+  players SimPlayPlayer[]
+
+  @@index([playedAt])
+  @@map("sim_plays")
+}
+
+// Who played a round, and who suggested it (several when a combined slice won).
+model SimPlayPlayer {
+  playId    String  @map("play_id") @db.Uuid
+  playerId  String  @map("player_id") @db.Uuid
+  played    Boolean @default(true)
+  suggested Boolean @default(false)
+
+  play   SimPlay   @relation(fields: [playId], references: [id], onDelete: Cascade)
+  player SimPlayer @relation(fields: [playerId], references: [id])
+
+  @@id([playId, playerId])
+  @@map("sim_play_players")
+}
+
+// Singleton (id = 1): the group's shared wheel settings.
+model SimSettings {
+  id              Int          @id @default(1)
+  courseLimit     Int          @default(0) @map("course_limit")
+  tallyEnabled    Boolean      @default(false) @map("tally_enabled")
+  tallyMode       SimTallyMode @default(ADDITIVE) @map("tally_mode")
+  tallyMultiplier Decimal      @default(1.5) @db.Decimal(3, 1) @map("tally_multiplier")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  @@map("sim_settings")
+}
+
+// GolfCourseAPI course-detail cache (tees, ratings, holes).
+model GolfCourseCache {
+  apiId     String   @id @map("api_id")
+  payload   Json
+  fetchedAt DateTime @default(now()) @map("fetched_at")
+
+  @@map("golf_course_cache")
 }

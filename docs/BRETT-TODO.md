@@ -84,7 +84,8 @@ Companion to `docs/ROADMAP.md`.
   several strategies depending on player/team counts. Scope TBD —
   needs a discussion pass before design.
 
-- **Fold in the Golf Course Wheel sim app.** Currently lives at
+- **Fold in the Golf Course Wheel sim app.** → BUILT on `feature/sim-wheel`
+  (see `docs/SIM-WHEEL-PLAN.md`); move to Done after the prod cutover. Currently lives at
   `D:\Local Sites\brett-wysocki\app\public\golf` — a PHP + vanilla-JS
   single-page app (LocalWP, v1.7.0) with a spin-the-wheel course picker,
   per-person course lists, play log, GolfCourseAPI integration, 6 SCSS

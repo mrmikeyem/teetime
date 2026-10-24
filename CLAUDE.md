@@ -141,6 +141,24 @@ hidden from the flat list, still on the browse calendar). AI reports
 (`lib/event-report.ts`) reuse the weather-summary/Haiku + in-process-cache
 pattern: weekend outlook + post-round recap (content-hash cached).
 
+**Sim wheel (`/sim`)**: the winter-simulator course picker, folded in from
+Brett's old PHP app (plan + parity notes: `docs/SIM-WHEEL-PLAN.md`). Players
+(`SimPlayer` = a member OR a guest) each keep a ranked course list; CHECKED
+players' lists feed the wheel; the same course on several lists is one
+combined slice. `SimCourse` is canonical (lists + log key on its id). The odds
+math lives ONCE in `lib/sim-wheel.ts` (client-safe) — the browser draws with
+it and `lib/sim-actions.ts` `resolveSpin` recomputes with it server-side, so
+Play/Skip (tally bumps + log + remove-from-EVERY-list) is one transaction.
+Session state (skips, by-person mode) is per-tab sessionStorage, never DB.
+Access = `User.simAccess` (default on, toggled on `/admin`), read from the DB
+via `getSimViewer()`/`requireSimApi()`. GolfCourseAPI (`lib/golf-course-api.ts`,
+`GOLFCOURSE_API_KEY`, `Authorization: Bearer`) is cache-first via
+`golf_course_cache`; no key = search off, cached details still served. API ids
+are opaque 8-char strings; the old app's NUMERIC ids no longer resolve upstream
+and are served from the imported cache forever (`isLegacyApiId`). Search
+results carry tee COUNTS only — never cache them as course details. The hourly cron's orphan-guest sweep MUST
+keep skipping guests with a `simPlayer` (cascade would wipe their list).
+
 **Weather**: `lib/weather.ts` (Open-Meteo geocode + forecast, cached via
 `next: { revalidate }`) and `lib/weather-summary.ts`, which calls Claude
 (`claude-haiku-4-5` via `@anthropic-ai/sdk`, `ANTHROPIC_API_KEY` in env) to

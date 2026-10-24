@@ -19,6 +19,7 @@ export default async function AdminPage() {
       role: true,
       lastLoginAt: true,
       createdAt: true,
+      simAccess: true,
       _count: { select: { memberships: true } },
     },
   });
@@ -74,6 +75,7 @@ export default async function AdminPage() {
                 createdAt: u.createdAt.toISOString(),
                 teeTimeCount: u._count.memberships,
                 isProtected: isProtectedUserId(u.id),
+                simAccess: u.simAccess,
               }}
               isSelf={u.id === session.user.id}
             />
