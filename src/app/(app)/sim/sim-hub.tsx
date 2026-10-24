@@ -193,7 +193,10 @@ export function SimHub({
           </button>
         </header>
 
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+        {/* grid-cols-1 = minmax(0,1fr): without it the mobile column sizes to
+            its widest content (e.g. the Add-player select) and iOS Safari
+            shrinks the whole page to fit. */}
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
           <div className="lg:sticky lg:top-5 lg:self-start">
             <section className="sim-card p-4 sm:p-6">
               <div className="mb-3 flex items-center justify-between">

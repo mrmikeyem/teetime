@@ -206,12 +206,22 @@
 
 .sim-root {
   min-height: 100dvh;
+  /* Never let a wide child widen the page (iOS shrink-to-fit). clip, not
+     hidden, so the sticky wheel column keeps working. */
+  overflow-x: clip;
   background-color: var(--sim-bg);
   background-image: var(--sim-bg-image);
   background-attachment: fixed;
   color: var(--sim-text);
   font-family: var(--sim-font-body);
   transition: background-color 0.4s ease, color 0.4s ease;
+}
+
+/* iOS ignores/mangles fixed backgrounds; scroll with the page on touch. */
+@media (hover: none) {
+  .sim-root {
+    background-attachment: scroll;
+  }
 }
 
 .sim-heading {
