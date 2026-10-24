@@ -41,7 +41,7 @@ export function SimHub({
   // plain wheel landing.
   const [flashy, setFlashy] = useStoredState("sim:flashy-reveal", true, "local");
   const reduceMotion = useReducedMotion();
-  const [reveal, setReveal] = useState<WheelEntry | null>(null);
+  const [reveal, setReveal] = useState<{ slice: WheelEntry; origin: DOMRect | null } | null>(null);
   const [theme, setTheme] = useState<SimThemeId>(initialTheme);
 
   // While a spin + its result card are up, hold the data steady: a live
@@ -87,7 +87,9 @@ export function SimHub({
       // and the tee-shot scene reveals it.
       const winner = slices[idx];
       const away = wheelRef.current.spinAway(idx);
-      setTimeout(() => setReveal(winner), 900);
+      // Hand off mid-whirl: the reveal picks up the wheel's hub golf ball
+      // exactly where it sits and tees it up.
+      setTimeout(() => setReveal({ slice: winner, origin: wheelRef.current?.hubRect() ?? null }), 900);
       await away;
       setSpinning(false);
       setWinnerId(winner.courseId);
@@ -218,7 +220,14 @@ export function SimHub({
               </div>
 
               <div className="py-4">
-                <Wheel slices={slices} colors={colors} winnerId={winnerId} soundOn={soundOn} handleRef={wheelRef} />
+                <Wheel
+                  slices={slices}
+                  colors={colors}
+                  winnerId={winnerId}
+                  soundOn={soundOn}
+                  faded={reveal !== null}
+                  handleRef={wheelRef}
+                />
               </div>
 
               <div className="flex justify-center">
@@ -311,8 +320,9 @@ export function SimHub({
       <AnimatePresence>
         {reveal && (
           <ShotReveal
-            key={reveal.courseId}
-            slice={reveal}
+            key={reveal.slice.courseId}
+            slice={reveal.slice}
+            origin={reveal.origin}
             scene={simTheme(theme).scene}
             soundOn={soundOn}
             onDone={(slice) => setSelection((cur) => cur ?? { slice, manual: false })}

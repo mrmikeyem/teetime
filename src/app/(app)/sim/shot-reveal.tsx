@@ -3,44 +3,54 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import type { WheelEntry } from "@/lib/sim-wheel";
+import { RISO_INK, RisoBallArt } from "./riso-ball";
 import { sfx } from "./sound";
 import type { SimScene } from "./themes";
 
 /**
- * The slot-machine reveal: after the wheel whirls away, a golfer tees off,
- * the camera follows the ball onto the green, it drops in the cup, and the
- * camera tilts up the flagstick to name the course.
+ * The tee-shot reveal, in a riso-print cartoon style (flat inks, bold ink
+ * outlines, grain), told from the ball's point of view:
  *
- * The whole scene is one pure timeline — `frame(t)` maps elapsed ms to every
- * position — driven by a single rAF loop that writes SVG attributes
- * directly (no React re-render per frame). Tap anywhere to skip to the end.
+ *   hub → tee   the wheel fades; its hub golf ball drifts down onto a tee
+ *   smash       a clubhead whips in — starburst, white flash, shake
+ *   launch      the ball shrinks away into a speckled sky
+ *   chase       top-down ball-cam over striped, winding fairway bands
+ *   green       lands, hops, rolls, hangs on the lip... drops
+ *   pin         whip-tilt up the flagstick; the course name reels in
+ *
+ * One pure timeline: every position is a function of elapsed ms, and a
+ * single rAF loop writes SVG attributes directly (no React render per
+ * frame). Tap anywhere to skip to the name.
  */
 
-// World coordinates (SVG user units). The camera frames an 800×500 view.
-const GROUND = 400;
-const TEE_X = 200;
-const BALL_X0 = 227;
-const LAND_X = 1630;
-const CUP_X = 1740;
-const PEAK = 300;
-const FLAG_TOP = 150;
-const BALL_R = 3.2;
+const CREAM = "#f7f0d6";
+const W = 600; // viewBox is W×W, sliced to fill any screen; action stays central
+const C = W / 2;
 
 const T = {
-  swing: 350,
-  top: 1150,
-  impact: 1300,
-  finish: 1650,
-  land: 3450,
-  hop2: 3900,
-  roll: 4200,
-  lip: 5050,
-  drop: 5300,
-  holed: 5550,
-  pan: 5700,
-  named: 7000,
-  done: 8900,
+  settle: 620,
+  club: 1050,
+  impact: 1350,
+  sky: 1600,
+  map: 2300,
+  land: 4500,
+  hop: 4700,
+  roll: 4850,
+  lip: 5650,
+  drop: 5850,
+  holed: 6050,
+  whip: 6100,
+  pin: 6400,
+  named: 6950,
+  done: 8800,
 };
+
+// Tee close-up: the ball sits on the tee here (screen coords).
+const TEE_BALL = { x: C, y: 352, r: 68 };
+// Top-down course (world coords): tee at the bottom, green at the top.
+const LAND = { x: 300, y: 352 };
+const CUP = { x: 332, y: 262 };
+const MAP_START_Y = 3150;
 
 const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
 const lerp = (a: number, b: number, u: number) => a + (b - a) * u;
@@ -48,112 +58,224 @@ const seg = (t: number, a: number, b: number) => clamp01((t - a) / (b - a));
 const easeInOut = (u: number) => (u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2);
 const easeOut = (u: number) => 1 - Math.pow(1 - u, 3);
 const easeIn = (u: number) => u * u * u;
+const backOut = (u: number) => 1 + 2.4 * Math.pow(u - 1, 3) + 1.4 * Math.pow(u - 1, 2);
+/** Deterministic 0..1 hash — stable "randomness" per frame step. */
+const hash = (n: number) => {
+  const x = Math.sin(n * 127.1 + 311.7) * 43758.5453;
+  return x - Math.floor(x);
+};
 
-/** Ball contact point (x, ground-relative y) and visibility at time t. */
-function ballAt(t: number): { x: number; y: number; opacity: number } {
-  if (t < T.impact) return { x: BALL_X0, y: GROUND, opacity: 1 };
+type Pt = { x: number; y: number };
+type Origin = { x: number; y: number; r: number } | null;
+
+/** Top-down map camera at time t (world coords + scale). */
+function mapCamera(t: number, ball: Pt) {
   if (t < T.land) {
-    const f = seg(t, T.impact, T.land);
-    return { x: lerp(BALL_X0, LAND_X, f), y: GROUND - 4 * PEAK * f * (1 - f), opacity: 1 };
-  }
-  if (t < T.hop2) {
-    const u = seg(t, T.land, T.hop2);
-    return { x: lerp(LAND_X, 1690, u), y: GROUND - 22 * Math.sin(Math.PI * u), opacity: 1 };
-  }
-  if (t < T.roll) {
-    const u = seg(t, T.hop2, T.roll);
-    return { x: lerp(1690, 1716, u), y: GROUND - 7 * Math.sin(Math.PI * u), opacity: 1 };
-  }
-  if (t < T.lip) {
-    return { x: lerp(1716, CUP_X, easeOut(seg(t, T.roll, T.lip))), y: GROUND, opacity: 1 };
-  }
-  if (t < T.drop) {
-    // Hangs on the lip for a heartbeat...
-    const u = seg(t, T.lip, T.drop);
-    return { x: CUP_X + 2.4 * Math.sin(u * 3 * Math.PI) * (1 - u), y: GROUND, opacity: 1 };
-  }
-  // ...and drops.
-  const u = seg(t, T.drop, T.holed);
-  return { x: CUP_X, y: GROUND + 9 * easeIn(u), opacity: 1 - u };
-}
-
-/** Club/arm rotation (degrees) around the shoulders. */
-function swingAngle(t: number): number {
-  if (t < T.swing) return 0;
-  if (t < T.top) return lerp(0, 168, easeInOut(seg(t, T.swing, T.top)));
-  if (t < T.impact) return lerp(168, -4, easeIn(seg(t, T.top, T.impact)));
-  if (t < T.finish) return lerp(-4, -172, easeOut(seg(t, T.impact, T.finish)));
-  return -172;
-}
-
-function camera(t: number, ball: { x: number; y: number }): { x: number; y: number; s: number } {
-  if (t < T.impact) {
-    return { x: TEE_X + 22, y: 356, s: lerp(2.0, 2.25, easeOut(seg(t, 0, T.impact))) };
-  }
-  if (t < T.land) {
-    const f = seg(t, T.impact, T.land);
-    const blend = easeInOut(Math.min(f / 0.15, 1));
-    const s =
-      f < 0.25
-        ? lerp(2.25, 1, easeInOut(f / 0.25))
-        : f > 0.7
-          ? lerp(1, 2.6, easeInOut((f - 0.7) / 0.3))
-          : 1;
+    const f = seg(t, T.map, T.land);
     return {
-      x: lerp(TEE_X + 22, ball.x, blend),
-      y: lerp(356, (ball.y + 380) / 2, blend),
-      s,
+      x: LAND.x + 95 * Math.sin(f * 2.3 * Math.PI) * (1 - f),
+      y: lerp(MAP_START_Y, LAND.y, easeInOut(f)),
+      s: 0.5 + 2.3 * Math.pow(f, 3),
     };
   }
-  if (t < T.pan) {
-    return { x: ball.x, y: 392, s: lerp(2.6, 3.1, seg(t, T.land, T.pan)) };
-  }
-  const u = easeInOut(seg(t, T.pan, T.named));
-  return { x: lerp(CUP_X, CUP_X + 32, u), y: lerp(392, FLAG_TOP + 30, u), s: lerp(3.1, 1.9, u) };
+  // Ease toward the cup so it stays framed while the ball rolls.
+  const u = seg(t, T.land, T.lip);
+  return {
+    x: lerp(ball.x, CUP.x, 0.45),
+    y: lerp(ball.y, CUP.y, 0.45),
+    s: lerp(2.8, 3.7, easeOut(u)),
+  };
 }
 
-function flagPath(t: number): string {
-  const x = CUP_X;
-  const y = FLAG_TOP;
-  const w = 5 * Math.sin(t / 190);
-  const v = 3 * Math.sin(t / 140 + 1);
-  return `M ${x} ${y} C ${x + 21} ${y - w} ${x + 42} ${y + w} ${x + 64} ${y + 2 + v} L ${x + 64} ${y + 40 + v} C ${x + 42} ${y + 38 + w} ${x + 21} ${y + 38 - w} ${x} ${y + 38} Z`;
+/** Ball on the green (world coords) + hop height + roll angle. */
+function greenBall(t: number): { x: number; y: number; h: number; spin: number; k: number; o: number } {
+  if (t < T.hop) {
+    const u = seg(t, T.land, T.hop);
+    return { x: lerp(LAND.x, 310, u), y: lerp(LAND.y, 322, u), h: 9 * Math.sin(Math.PI * u), spin: u * 90, k: 1, o: 1 };
+  }
+  if (t < T.roll) {
+    const u = seg(t, T.hop, T.roll);
+    return { x: lerp(310, 316, u), y: lerp(322, 310, u), h: 3 * Math.sin(Math.PI * u), spin: 90 + u * 30, k: 1, o: 1 };
+  }
+  if (t < T.lip) {
+    const u = easeOut(seg(t, T.roll, T.lip));
+    return { x: lerp(316, CUP.x, u), y: lerp(310, CUP.y + 16, u), h: 0, spin: 120 + u * 260, k: 1, o: 1 };
+  }
+  if (t < T.drop) {
+    const u = seg(t, T.lip, T.drop);
+    // Hangs on the front lip for a heartbeat...
+    return { x: CUP.x + 3 * Math.sin(u * 3 * Math.PI) * (1 - u), y: CUP.y + 16, h: 0, spin: 380, k: 1, o: 1 };
+  }
+  const u = seg(t, T.drop, T.holed);
+  return { x: CUP.x, y: CUP.y + 4 * easeIn(u), h: 0, spin: 380, k: 1 - 0.4 * easeIn(u), o: 1 - easeIn(u) };
 }
 
-function trailPath(t: number): string {
-  const end = seg(t, T.impact, T.land);
-  if (end <= 0) return "";
-  const pts: string[] = [];
-  for (let i = 0; i <= 24; i++) {
-    const f = (end * i) / 24;
-    pts.push(`${lerp(BALL_X0, LAND_X, f).toFixed(1)} ${(GROUND - BALL_R - 4 * PEAK * f * (1 - f)).toFixed(1)}`);
+/** Where the ball is drawn on screen (it lives in screen space). */
+function ballScreen(
+  t: number,
+  origin: Origin
+): { x: number; y: number; r: number; rot: number; sx: number; sy: number; o: number } {
+  // hub → tee: from the wheel hub's spot down onto the tee.
+  if (t < T.settle) {
+    const from = origin ?? { x: C, y: 200, r: 30 };
+    const u = easeInOut(seg(t, 0, T.settle));
+    const arc = Math.sin(u * Math.PI) * -40;
+    return {
+      x: lerp(from.x, TEE_BALL.x, u),
+      y: lerp(from.y, TEE_BALL.y, u) + arc,
+      r: lerp(from.r, TEE_BALL.r, u),
+      rot: 0,
+      sx: 1,
+      sy: 1,
+      o: 1,
+    };
   }
-  return `M ${pts.join(" L ")}`;
+  if (t < T.impact) {
+    const settle = seg(t, T.settle, T.settle + 220);
+    const squash = Math.sin(settle * Math.PI) * 0.08 * (1 - settle);
+    const idle = Math.sin(t / 160) * 0.6;
+    return { x: TEE_BALL.x, y: TEE_BALL.y + idle, r: TEE_BALL.r, rot: 0, sx: 1 + squash, sy: 1 - squash, o: 1 };
+  }
+  if (t < T.sky) {
+    // Smashed toward the camera and up out of frame.
+    const u = seg(t, T.impact, T.sky);
+    const squash = u < 0.25 ? Math.sin((u / 0.25) * Math.PI) * 0.3 : 0;
+    return {
+      x: lerp(TEE_BALL.x, C + 40, easeIn(u)),
+      y: lerp(TEE_BALL.y, -260, easeIn(u)),
+      r: lerp(TEE_BALL.r, 190, easeIn(u)),
+      rot: u * 200,
+      sx: 1 - squash * 0.6,
+      sy: 1 + squash,
+      o: 1,
+    };
+  }
+  if (t < T.map) {
+    // Launch: shrinking away into the sky.
+    const u = seg(t, T.sky, T.map);
+    return { x: C + 14 * Math.sin(u * 3), y: lerp(560, 150, easeOut(u)), r: lerp(30, 5, easeOut(u)), rot: u * 540, sx: 1, sy: 1, o: 1 };
+  }
+  if (t < T.land) {
+    // Ball-cam: centered, big, spinning lazily as the world rushes past.
+    const f = seg(t, T.map, T.land);
+    return { x: C + 6 * Math.sin(t / 300), y: C, r: 46 + 3 * Math.sin(f * Math.PI), rot: 540 + f * 300, sx: 1, sy: 1, o: 1 };
+  }
+  const b = greenBall(t);
+  const cam = mapCamera(t, b);
+  const r = (46 / 2.8) * cam.s * (1 + b.h * 0.045) * b.k;
+  const impactSquash = seg(t, T.land, T.land + 120);
+  const sq = Math.sin(impactSquash * Math.PI) * 0.14;
+  return {
+    x: C + (b.x - cam.x) * cam.s,
+    y: C + (b.y - cam.y) * cam.s - b.h * cam.s * 0.6,
+    r,
+    rot: 840 + b.spin,
+    sx: 1 + sq,
+    sy: 1 - sq,
+    o: b.o,
+  };
 }
+
+function flagPath(now: number): string {
+  const x = 244;
+  const y = 152;
+  const w = 7 * Math.sin(now / 210);
+  const v = 5 * Math.sin(now / 150 + 1);
+  return `M ${x} ${y} C ${x + 55} ${y - w} ${x + 115} ${y + w} ${x + 172} ${y + 4 + v} L ${x + 172} ${y + 106 + v} C ${x + 115} ${y + 104 + w} ${x + 55} ${y + 102 - w} ${x} ${y + 104} Z`;
+}
+
+/** Bumpy outlined bush/hill silhouette along a baseline. */
+function bushPath(x0: number, x1: number, base: number, h: number, bumps: number, seed: number): string {
+  // Rounded at both ends: rises from the baseline and falls back to it.
+  const step = (x1 - x0) / bumps;
+  const r = step * 0.62;
+  let d = `M ${x0} ${base + 60} L ${x0} ${base}`;
+  for (let i = 0; i < bumps; i++) {
+    const nx = x0 + step * (i + 1);
+    const ny = i === bumps - 1 ? base : base - h * (0.45 + 0.55 * hash(seed + i));
+    d += ` A ${r} ${r} 0 0 1 ${nx} ${ny}`;
+  }
+  return `${d} L ${x1} ${base + 60} Z`;
+}
+
+function grassPath(y: number, seed: number): string {
+  let d = "";
+  for (let x = -30; x < W + 30; x += 8) {
+    const h = 10 + 16 * hash(seed + x);
+    const lean = (hash(seed + x * 3) - 0.5) * 8;
+    d += `M ${x} ${y} Q ${x + 2 + lean * 0.5} ${y - h * 0.6} ${x + 4 + lean} ${y - h} Q ${x + 5} ${y - h * 0.5} ${x + 8} ${y} `;
+  }
+  return d;
+}
+
+// The fairway's centerline — the mowing bands are concentric strokes along it.
+const FAIRWAY = `M 300 ${MAP_START_Y + 300} C 110 2750, 520 2350, 330 1850 S 130 950, 320 640 S 335 380, ${CUP.x} ${CUP.y}`;
 
 export function ShotReveal({
   slice,
   scene,
   soundOn,
+  origin,
   onDone,
 }: {
   slice: WheelEntry;
   scene: SimScene;
   soundOn: boolean;
+  /** Viewport box of the wheel's hub ball — the reveal starts from it. */
+  origin: DOMRect | null;
   onDone: (slice: WheelEntry) => void;
 }) {
-  const camRef = useRef<SVGGElement>(null);
-  const farRef = useRef<SVGGElement>(null);
-  const armsRef = useRef<SVGGElement>(null);
-  const torsoRef = useRef<SVGGElement>(null);
-  const ballRef = useRef<SVGCircleElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const grainRef = useRef<HTMLDivElement>(null);
+  const backdropRef = useRef<SVGGElement>(null);
+  const teeShotRef = useRef<SVGGElement>(null);
+  const teeRef = useRef<SVGGElement>(null);
+  const clubRef = useRef<SVGGElement>(null);
+  const burstRef = useRef<SVGGElement>(null);
+  const flashRef = useRef<SVGRectElement>(null);
+  const skyRef = useRef<SVGGElement>(null);
+  const mapRef = useRef<SVGGElement>(null);
+  const worldRef = useRef<SVGGElement>(null);
+  const speedRef = useRef<SVGGElement>(null);
   const shadowRef = useRef<SVGEllipseElement>(null);
-  const trailRef = useRef<SVGPathElement>(null);
+  const ballRef = useRef<SVGGElement>(null);
+  const whipRef = useRef<SVGGElement>(null);
+  const pinRef = useRef<SVGGElement>(null);
   const flagRef = useRef<SVGPathElement>(null);
+  const flagShadowRef = useRef<SVGPathElement>(null);
   const skipRef = useRef(false);
   const [named, setNamed] = useState(false);
 
+  const water = scene.water ?? "#7ccbe8";
+  const sand = scene.sand ?? "#f3e3a2";
+  const tee = scene.tee ?? "#2b59ff";
+
   useEffect(() => {
+    // Riso grain: one noise tile, nudged around at 12fps so it "boils".
+    const tile = document.createElement("canvas");
+    tile.width = tile.height = 180;
+    const g = tile.getContext("2d");
+    if (g) {
+      const img = g.createImageData(180, 180);
+      for (let i = 0; i < img.data.length; i += 4) {
+        const v = Math.random() < 0.5 ? 0 : 255;
+        img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
+        img.data[i + 3] = Math.random() < 0.55 ? 34 : 0;
+      }
+      g.putImageData(img, 0, 0);
+      if (grainRef.current) grainRef.current.style.backgroundImage = `url(${tile.toDataURL()})`;
+    }
+
+    // Wheel hub position → SVG coords, so the hand-off is exact.
+    let from: Origin = null;
+    const ctm = svgRef.current?.getScreenCTM();
+    if (ctm && origin) {
+      const p = new DOMPoint(origin.left + origin.width / 2, origin.top + origin.height / 2).matrixTransform(
+        ctm.inverse()
+      );
+      from = { x: p.x, y: p.y, r: origin.width / 2 / ctm.a };
+    }
+
     let raf = 0;
     const start = performance.now();
     const fired = new Set<string>();
@@ -163,46 +285,90 @@ export function ShotReveal({
         fn();
       }
     };
+    const show = (el: Element | null, on: boolean) => el?.setAttribute("visibility", on ? "visible" : "hidden");
+    const attr = (el: Element | null, name: string, v: string | number) => el?.setAttribute(name, String(v));
 
     const loop = (now: number) => {
-      // Skipping jumps the clock to the reveal.
       const t = skipRef.current ? Math.max(now - start, T.named) : now - start;
-      const ball = ballAt(t);
-      const cam = camera(t, ball);
 
-      camRef.current?.setAttribute(
-        "transform",
-        `translate(400 250) scale(${cam.s}) translate(${-cam.x} ${-cam.y})`
-      );
-      // Distant hills drift slower than the world (parallax) and sink as
-      // the camera tilts up the flagstick.
-      farRef.current?.setAttribute(
-        "transform",
-        `translate(${-(cam.x - TEE_X) * 0.12} ${(392 - cam.y) * 0.35})`
-      );
-      const a = swingAngle(t);
-      armsRef.current?.setAttribute("transform", `rotate(${a} ${SHOULDER.x} ${SHOULDER.y})`);
-      // Hips/shoulders coil a little with the swing.
-      torsoRef.current?.setAttribute("transform", `rotate(${a * 0.04} 0 -33)`);
+      // ── backdrop fades in behind the hub ball ───────────────────────
+      attr(backdropRef.current, "opacity", easeOut(seg(t, 0, 450)));
 
-      const height = GROUND - ball.y;
-      ballRef.current?.setAttribute("cx", String(ball.x));
-      ballRef.current?.setAttribute("cy", String(ball.y - BALL_R));
-      ballRef.current?.setAttribute("opacity", String(ball.opacity));
-      shadowRef.current?.setAttribute("cx", String(ball.x));
-      shadowRef.current?.setAttribute("rx", String(Math.max(1.2, 4.5 * (1 - height / (PEAK + 40)))));
-      shadowRef.current?.setAttribute(
-        "opacity",
-        String(t < T.drop ? 0.32 * (1 - Math.min(height, 300) / 340) : 0)
+      // ── tee close-up + smash ─────────────────────────────────────────
+      show(teeShotRef.current, t < T.sky);
+      const shake = t > T.impact && t < T.impact + 320 ? (1 - seg(t, T.impact, T.impact + 320)) * 9 : 0;
+      attr(teeShotRef.current, "transform", `translate(${shake * Math.sin(t * 0.09)} ${shake * Math.cos(t * 0.13)})`);
+      attr(teeRef.current, "transform", `translate(0 ${lerp(90, 0, backOut(seg(t, 150, T.settle)))})`);
+      const cu = seg(t, T.club, T.impact);
+      const clubX = lerp(-420, 0, easeIn(cu)) + (t > T.impact ? easeOut(seg(t, T.impact, T.impact + 260)) * 700 : 0);
+      attr(clubRef.current, "transform", `translate(${clubX} 0)`);
+      show(clubRef.current, t >= T.club && t < T.impact + 260);
+      const bu = seg(t, T.impact, T.impact + 380);
+      show(burstRef.current, t >= T.impact && bu < 1);
+      attr(
+        burstRef.current,
+        "transform",
+        `translate(${TEE_BALL.x} ${TEE_BALL.y}) scale(${0.3 + backOut(Math.min(bu * 2.2, 1)) * 1.05}) rotate(${bu * 25})`
       );
-      trailRef.current?.setAttribute("d", trailPath(t));
-      trailRef.current?.setAttribute("opacity", String(0.75 * (1 - seg(t, T.land, T.land + 700))));
-      flagRef.current?.setAttribute("d", flagPath(now));
+      attr(burstRef.current, "opacity", 1 - easeIn(bu));
+      attr(flashRef.current, "opacity", t >= T.impact ? 1 - seg(t, T.impact + 60, T.impact + 220) : 0);
+
+      // ── launch into the sky ──────────────────────────────────────────
+      show(skyRef.current, t >= T.sky && t < T.map + 120);
+
+      // ── top-down chase + green ───────────────────────────────────────
+      const onMap = t >= T.map && t < T.pin;
+      show(mapRef.current, onMap);
+      const gb = greenBall(t);
+      const cam = mapCamera(t, t < T.land ? LAND : gb);
+      attr(worldRef.current, "transform", `translate(${C} ${C}) scale(${cam.s}) translate(${-cam.x} ${-cam.y})`);
+      const step = Math.floor(t / 70);
+      show(speedRef.current, onMap && t < T.land - 250);
+      speedRef.current?.querySelectorAll("path").forEach((el, i) => {
+        const left = i % 2 === 0;
+        const y = (hash(step * 13 + i) * W) | 0;
+        const len = 60 + 90 * hash(step * 7 + i);
+        attr(el, "transform", `translate(${left ? 0 : W} ${y}) scale(${left ? 1 : -1} 1)`);
+        attr(el, "d", `M 0 -5 L ${len} 0 L 0 5 Z`);
+        attr(el, "opacity", hash(step * 3 + i) > 0.35 ? 0.9 : 0);
+      });
+
+      // ── the ball (screen space) + its shadow ─────────────────────────
+      const b = ballScreen(t, from);
+      show(ballRef.current, t < T.pin && b.o > 0.01);
+      attr(ballRef.current, "opacity", b.o);
+      attr(ballRef.current, "transform", `translate(${b.x} ${b.y}) scale(${b.sx} ${b.sy}) rotate(${b.rot}) scale(${b.r / 50})`);
+      if (t >= T.map && t < T.holed) {
+        // Altitude = shadow offset: far below while high, kissing it on landing.
+        const alt = t < T.land ? 1 - Math.pow(seg(t, T.map, T.land), 2) : (gb.h / 9) * 0.3;
+        attr(shadowRef.current, "cx", b.x + 75 * alt);
+        attr(shadowRef.current, "cy", b.y + 115 * alt + b.r * 0.55);
+        attr(shadowRef.current, "rx", b.r * (0.8 + 0.25 * (1 - alt)));
+        attr(shadowRef.current, "ry", b.r * (0.42 + 0.12 * (1 - alt)));
+        attr(shadowRef.current, "opacity", (0.18 + 0.3 * (1 - alt)) * b.o);
+      } else {
+        attr(shadowRef.current, "opacity", 0);
+      }
+
+      // ── whip-tilt up to the pin ──────────────────────────────────────
+      show(whipRef.current, t >= T.whip && t < T.pin + 80);
+      attr(whipRef.current, "transform", `translate(0 ${lerp(-W - 120, 0, easeIn(seg(t, T.whip, T.pin)))})`);
+      show(pinRef.current, t >= T.pin);
+      attr(pinRef.current, "transform", `translate(0 ${lerp(260, 0, easeOut(seg(t, T.pin, T.named)))})`);
+      const fp = flagPath(now);
+      attr(flagRef.current, "d", fp);
+      attr(flagShadowRef.current, "d", fp);
+
+      // Grain boils at 12fps.
+      if (grainRef.current) {
+        const gs = Math.floor(now / 83);
+        grainRef.current.style.backgroundPosition = `${(hash(gs) * 180) | 0}px ${(hash(gs + 9) * 180) | 0}px`;
+      }
 
       if (soundOn && !skipRef.current) {
-        if (t >= T.top) once("strike", sfx.strike);
-        if (t >= T.land) once("land", () => sfx.thud(0.12));
-        if (t >= T.hop2) once("hop", () => sfx.thud(0.06));
+        if (t >= T.impact - 160) once("strike", sfx.strike);
+        if (t >= T.land) once("land", () => sfx.thud(0.13));
+        if (t >= T.hop) once("hop", () => sfx.thud(0.06));
         if (t >= T.drop) once("cup", sfx.cup);
       }
       if (t >= T.named) {
@@ -210,8 +376,15 @@ export function ShotReveal({
           setNamed(true);
           if (soundOn) sfx.chime();
           import("canvas-confetti").then(({ default: confetti }) => {
-            const colors = [scene.flag, "#ffffff", scene.green];
-            confetti({ particleCount: 120, spread: 90, startVelocity: 42, origin: { x: 0.5, y: 0.42 }, colors });
+            confetti({
+              particleCount: 110,
+              spread: 85,
+              startVelocity: 40,
+              origin: { x: 0.5, y: 0.45 },
+              colors: [scene.flag, CREAM, scene.green, sand, water],
+              shapes: ["square"],
+              scalar: 1.1,
+            });
           });
         });
       }
@@ -224,97 +397,153 @@ export function ShotReveal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const ink = { stroke: RISO_INK, strokeWidth: 3, strokeLinejoin: "round" as const };
+
   return (
     <motion.div
       className="fixed inset-0 z-30 cursor-pointer overflow-hidden"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
       exit={{ opacity: 0, transition: { duration: 0.35 } }}
-      transition={{ duration: 0.6 }}
       onClick={() => {
         skipRef.current = true;
       }}
       role="presentation"
     >
-      <svg viewBox="0 0 800 500" preserveAspectRatio="xMidYMid slice" className="absolute inset-0 h-full w-full">
-        <defs>
-          <linearGradient id="sim-sky" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor={scene.skyTop} />
-            <stop offset="1" stopColor={scene.skyBottom} />
-          </linearGradient>
-          <radialGradient id="sim-ball" cx="0.35" cy="0.35" r="0.7">
-            <stop offset="0" stopColor="#ffffff" />
-            <stop offset="1" stopColor="#d9d9d9" />
-          </radialGradient>
-        </defs>
-        <rect x="-200" y="-200" width="1200" height="900" fill="url(#sim-sky)" />
-        <circle cx="610" cy="95" r="38" fill={scene.sun} opacity="0.85" />
-        <circle cx="610" cy="95" r="60" fill={scene.sun} opacity="0.15" />
-        <Clouds color="#ffffff" />
+      <svg ref={svgRef} viewBox={`0 0 ${W} ${W}`} preserveAspectRatio="xMidYMid slice" className="absolute inset-0 h-full w-full">
+        <g ref={backdropRef} opacity="0">
+          {/* ── Tee close-up ─────────────────────────────────────────── */}
+          <g ref={teeShotRef}>
+            <rect x={-W} y={-W} width={W * 3} height={W * 3} fill={scene.skyTop} />
+            <rect x={-W} y={250} width={W * 3} height={W} fill={scene.skyBottom} opacity="0.35" />
+            <Cloud x={95} y={120} s={1} />
+            <Cloud x={500} y={80} s={0.75} />
+            <path d={bushPath(-60, 230, 430, 120, 4, 3)} fill={scene.hills} {...ink} />
+            <path d={bushPath(370, 680, 430, 135, 4, 9)} fill={scene.hills} {...ink} />
+            <path d={bushPath(-60, 680, 440, 38, 9, 21)} fill={scene.trees} {...ink} />
+            <rect x={-W} y={438} width={W * 3} height={W} fill={scene.rough} />
+            <g ref={teeRef}>
+              <path
+                d={`M ${C - 26} 418 L ${C + 26} 418 L ${C + 11} 432 L ${C + 5} 478 L ${C - 5} 478 L ${C - 11} 432 Z`}
+                fill={tee}
+                {...ink}
+              />
+            </g>
+            <path d={grassPath(462, 5)} fill={scene.trees} stroke={RISO_INK} strokeWidth="1.6" />
+            <path d={grassPath(490, 11)} fill={scene.rough} stroke={RISO_INK} strokeWidth="1.6" />
+            {/* Clubhead swinging through */}
+            <g ref={clubRef} visibility="hidden">
+              {[0, 1, 2].map((i) => (
+                <path
+                  key={i}
+                  d={`M ${-300 + i * 40} ${360 + i * 22} L ${120 + i * 10} ${362 + i * 22}`}
+                  stroke={CREAM}
+                  strokeWidth="7"
+                  strokeLinecap="round"
+                  opacity={0.85 - i * 0.2}
+                />
+              ))}
+              <path d="M 120 330 L -40 -400" stroke={RISO_INK} strokeWidth="9" strokeLinecap="round" />
+              <path d="M 108 318 Q 190 300 228 340 Q 246 372 214 400 Q 160 424 104 404 Q 86 360 108 318 Z" fill="#2f3438" {...ink} />
+              <path d="M 222 338 Q 236 370 214 398" stroke={CREAM} strokeWidth="4" fill="none" strokeLinecap="round" />
+            </g>
+            <g ref={burstRef} visibility="hidden">
+              <Starburst />
+            </g>
+          </g>
 
-        {/* Distant hills (parallax layer, screen space). */}
-        <g ref={farRef}>
-          <path
-            d="M -400 360 Q -250 300 -100 340 T 200 330 T 500 335 T 800 320 T 1100 340 T 1400 330 L 1400 700 L -400 700 Z"
-            fill={scene.hills}
-            opacity="0.55"
-          />
+          {/* ── Launch: speckled sky ─────────────────────────────────── */}
+          <g ref={skyRef} visibility="hidden">
+            <rect x={-W} y={-W} width={W * 3} height={W * 3} fill={scene.skyTop} />
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <path
+                key={i}
+                d={`M ${120 + i * 75} 620 L ${126 + i * 75} ${480 - (i % 3) * 60}`}
+                stroke={CREAM}
+                strokeWidth="4"
+                strokeLinecap="round"
+                opacity="0.7"
+              />
+            ))}
+          </g>
+
+          {/* ── Top-down chase + green ───────────────────────────────── */}
+          <g ref={mapRef} visibility="hidden">
+            <rect x={-W} y={-W} width={W * 3} height={W * 3} fill={scene.rough} />
+            <g ref={worldRef}>
+              <Course scene={scene} water={water} sand={sand} />
+            </g>
+            <g ref={speedRef}>
+              {Array.from({ length: 10 }, (_, i) => (
+                <path key={i} fill={CREAM} stroke={RISO_INK} strokeWidth="1.5" />
+              ))}
+            </g>
+          </g>
         </g>
 
-        {/* The world. */}
-        <g ref={camRef}>
-          {[420, 640, 980, 1240, 1420, 1990, 2150].map((x, i) => (
-            <Tree key={x} x={x} scale={0.8 + (i % 3) * 0.25} color={scene.trees} />
-          ))}
-          <rect x="-1500" y={GROUND} width="5000" height="900" fill={scene.rough} />
-          <path
-            d={`M 240 ${GROUND} L 1950 ${GROUND} Q 1990 ${GROUND + 9} 1950 ${GROUND + 18} L 240 ${GROUND + 18} Q 200 ${GROUND + 9} 240 ${GROUND} Z`}
-            fill={scene.fairway}
-          />
-          {/* Mowing stripes */}
-          {Array.from({ length: 17 }, (_, i) => (
-            <rect key={i} x={260 + i * 100} y={GROUND} width="50" height="18" fill="#ffffff" opacity="0.05" />
-          ))}
-          <rect x="168" y={GROUND - 1} width="78" height="7" rx="3" fill={scene.fairway} />
-          {scene.bushes &&
-            [1560, 1610, 1880, 1930].map((x) => (
-              <g key={x}>
-                <ellipse cx={x} cy={GROUND - 4} rx="16" ry="9" fill={scene.trees} />
-                <ellipse cx={x} cy={GROUND - 7} rx="13" ry="6" fill={scene.bushes} opacity="0.9" />
-              </g>
-            ))}
-          <ellipse cx={CUP_X} cy={GROUND + 4} rx="178" ry="17" fill={scene.fairway} />
-          <ellipse cx={CUP_X} cy={GROUND + 3} rx="150" ry="12" fill={scene.green} />
-          <ellipse cx={CUP_X} cy={GROUND + 0.6} rx="4.6" ry="1.7" fill="#0b0b0b" />
-          <line x1={CUP_X} y1={GROUND} x2={CUP_X} y2={FLAG_TOP - 2} stroke="#f4f4f4" strokeWidth="1.6" />
-          <circle cx={CUP_X} cy={FLAG_TOP - 3} r="1.8" fill="#f4f4f4" />
-          <path ref={flagRef} fill={scene.flag} stroke="rgba(0,0,0,0.25)" strokeWidth="0.6" />
+        {/* Shadow + ball sit above every backdrop at full opacity from frame
+            one, so the wheel's hub ball never blinks during the hand-off. */}
+        <ellipse ref={shadowRef} fill={RISO_INK} opacity="0" />
+        <g ref={ballRef}>
+          <RisoBallArt outline={3} />
+        </g>
 
-          <Golfer color={scene.golfer} shirt={scene.flag} torsoRef={torsoRef} armsRef={armsRef} />
+        {/* White flash at impact */}
+        <rect ref={flashRef} x={-W} y={-W} width={W * 3} height={W * 3} fill="#ffffff" opacity="0" pointerEvents="none" />
 
-          <path ref={trailRef} fill="none" stroke="#ffffff" strokeWidth="1.3" strokeLinecap="round" strokeDasharray="0.1 5" />
-          <ellipse ref={shadowRef} cy={GROUND + 0.8} ry="1.2" fill="#000000" />
-          <circle ref={ballRef} r={BALL_R} fill="url(#sim-ball)" stroke="rgba(0,0,0,0.35)" strokeWidth="0.5" />
+        {/* ── Pin + flag (side view) ─────────────────────────────────── */}
+        <g ref={pinRef} visibility="hidden">
+          <rect x={-W} y={-W} width={W * 3} height={W * 3} fill={scene.skyTop} />
+          <rect x={-W} y={300} width={W * 3} height={W} fill={scene.skyBottom} opacity="0.35" />
+          <circle cx="470" cy="190" r="46" fill={sand} {...ink} />
+          <Cloud x={110} y={110} s={0.9} />
+          <Cloud x={430} y={330} s={0.6} />
+          <path d={bushPath(-60, 680, 470, 70, 7, 33)} fill={scene.hills} {...ink} />
+          <path d="M -100 640 L -100 505 Q 300 452 700 505 L 700 640 Z" fill={scene.green} {...ink} />
+          <ellipse cx="240" cy="488" rx="16" ry="5" fill={RISO_INK} />
+          <path ref={flagShadowRef} transform="translate(6 6)" fill={RISO_INK} opacity="0.22" />
+          <rect x="235" y="146" width="9" height="344" rx="3" fill={CREAM} {...ink} strokeWidth={2.5} />
+          <path ref={flagRef} fill={scene.flag} {...ink} />
+          <circle cx="239.5" cy="143" r="7" fill={CREAM} {...ink} strokeWidth={2.5} />
+        </g>
+
+        {/* ── Whip-tilt transition ───────────────────────────────────── */}
+        <g ref={whipRef} visibility="hidden">
+          <rect x={-W} y={-80} width={W * 3} height={W + 200} fill={scene.skyTop} />
+          <rect x={-W} y={W - 60} width={W * 3} height={180} fill={scene.green} />
+          {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+            <path key={i} d={`M ${40 + i * 90} -40 L ${46 + i * 90} ${W + 40}`} stroke={CREAM} strokeWidth="5" opacity="0.6" />
+          ))}
         </g>
       </svg>
+
+      {/* Riso grain over everything */}
+      <div
+        ref={grainRef}
+        className="pointer-events-none absolute inset-0"
+        style={{ mixBlendMode: "multiply", opacity: 0.55, backgroundRepeat: "repeat" }}
+      />
 
       <AnimatePresence>
         {named && (
           <motion.div
-            className="pointer-events-none absolute inset-x-0 top-[60%] flex justify-center px-4"
-            initial={{ opacity: 0, y: 30, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ type: "spring", stiffness: 220, damping: 18 }}
+            className="pointer-events-none absolute inset-x-0 top-[57%] flex justify-center px-4"
+            initial={{ opacity: 0, y: 40, rotate: -4, scale: 0.85 }}
+            animate={{ opacity: 1, y: 0, rotate: -1.5, scale: 1 }}
+            transition={{ type: "spring", stiffness: 240, damping: 15 }}
           >
             <div
-              className="rounded-2xl px-6 py-4 text-center shadow-2xl"
-              style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)", color: "#fff" }}
+              className="max-w-[92vw] rounded-xl px-6 py-4 text-center"
+              style={{
+                background: CREAM,
+                color: RISO_INK,
+                border: `3px solid ${RISO_INK}`,
+                boxShadow: `7px 7px 0 ${RISO_INK}`,
+              }}
             >
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] opacity-80">Tonight&apos;s course</p>
+              <p className="text-xs font-bold uppercase tracking-[0.3em]">⛳ Tonight&apos;s course</p>
               <p className="sim-heading mt-1 text-[clamp(1.6rem,6vw,3.2rem)] font-bold leading-tight">
                 <SlotText text={slice.courseName} />
               </p>
-              <p className="mt-1 text-sm opacity-80">
+              <p className="mt-1 text-sm opacity-75">
                 Suggested by {slice.suggesters.map((s) => s.name).join(", ")}
               </p>
             </div>
@@ -323,11 +552,79 @@ export function ShotReveal({
       </AnimatePresence>
 
       {!named && (
-        <p className="pointer-events-none absolute inset-x-0 bottom-5 text-center text-xs font-semibold text-white/80 drop-shadow">
+        <p className="pointer-events-none absolute inset-x-0 bottom-5 text-center text-xs font-bold uppercase tracking-widest text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]">
           Tap to skip
         </p>
       )}
     </motion.div>
+  );
+}
+
+/** The striped, winding course seen from above (world coords). */
+function Course({ scene, water, sand }: { scene: SimScene; water: string; sand: string }) {
+  const ink = { stroke: RISO_INK, strokeWidth: 3, strokeLinejoin: "round" as const };
+  const trees: [number, number, number][] = [
+    [60, 2950, 30], [95, 2900, 22], [540, 2700, 34], [575, 2640, 24], [40, 2350, 28],
+    [560, 2050, 30], [520, 1990, 22], [70, 1600, 34], [30, 1540, 24], [560, 1350, 28],
+    [600, 1290, 20], [60, 1050, 26], [540, 820, 32], [580, 760, 22], [80, 560, 30],
+    [560, 420, 26], [40, 300, 22], [600, 200, 30],
+  ];
+  return (
+    <g>
+      {/* Mowing bands: concentric strokes along one centerline */}
+      <path d={FAIRWAY} fill="none" stroke={RISO_INK} strokeWidth="286" strokeLinecap="round" />
+      <path d={FAIRWAY} fill="none" stroke={scene.fairway} strokeWidth="280" strokeLinecap="round" />
+      <path d={FAIRWAY} fill="none" stroke={scene.green} strokeWidth="210" strokeLinecap="round" />
+      <path d={FAIRWAY} fill="none" stroke={scene.fairway} strokeWidth="140" strokeLinecap="round" />
+      <path d={FAIRWAY} fill="none" stroke={scene.green} strokeWidth="70" strokeLinecap="round" />
+      {/* Hazards */}
+      <path d="M 440 2330 q 40 -40 90 -10 q 30 40 -10 60 q -60 20 -80 -50 z" fill={sand} {...ink} />
+      <path d="M 120 1450 q 30 -50 80 -20 q 20 50 -30 60 q -50 10 -50 -40 z" fill={sand} {...ink} />
+      <path d="M 60 2050 q 40 -80 120 -50 q 60 40 10 100 q -90 50 -130 -50 z" fill={water} {...ink} />
+      <path d="M 470 520 q 50 -60 110 -20 q 30 60 -30 90 q -70 20 -80 -70 z" fill={water} {...ink} />
+      {trees.map(([x, y, r], i) => (
+        <circle key={i} cx={x} cy={y} r={r} fill={scene.trees} {...ink} />
+      ))}
+      {/* Green complex: layered contours, then the cup */}
+      <path
+        d={`M ${CUP.x - 150} ${CUP.y + 30} Q ${CUP.x - 140} ${CUP.y - 120} ${CUP.x} ${CUP.y - 125} Q ${CUP.x + 150} ${CUP.y - 110} ${CUP.x + 145} ${CUP.y + 20} Q ${CUP.x + 120} ${CUP.y + 150} ${CUP.x - 10} ${CUP.y + 140} Q ${CUP.x - 155} ${CUP.y + 130} ${CUP.x - 150} ${CUP.y + 30} Z`}
+        fill={scene.fairway}
+        {...ink}
+      />
+      <path
+        d={`M ${CUP.x - 110} ${CUP.y + 20} Q ${CUP.x - 100} ${CUP.y - 90} ${CUP.x + 5} ${CUP.y - 92} Q ${CUP.x + 112} ${CUP.y - 80} ${CUP.x + 108} ${CUP.y + 15} Q ${CUP.x + 90} ${CUP.y + 105} ${CUP.x - 5} ${CUP.y + 100} Q ${CUP.x - 115} ${CUP.y + 95} ${CUP.x - 110} ${CUP.y + 20} Z`}
+        fill={scene.green}
+        {...ink}
+      />
+      {/* A real cup is ~2.5x the ball's width (ball ≈ 16 world units here). */}
+      <ellipse cx={CUP.x} cy={CUP.y} rx="30" ry="22" fill={RISO_INK} />
+      <path d={`M ${CUP.x - 28} ${CUP.y - 4} A 30 22 0 0 1 ${CUP.x + 28} ${CUP.y - 4}`} fill="none" stroke={CREAM} strokeWidth="2" opacity="0.55" />
+    </g>
+  );
+}
+
+function Starburst() {
+  const spikes = 14;
+  const pts: string[] = [];
+  for (let i = 0; i < spikes * 2; i++) {
+    const a = (i / (spikes * 2)) * Math.PI * 2;
+    const r = i % 2 === 0 ? 150 + 60 * hash(i) : 78;
+    pts.push(`${(Math.cos(a) * r).toFixed(1)},${(Math.sin(a) * r).toFixed(1)}`);
+  }
+  return <polygon points={pts.join(" ")} fill={CREAM} stroke={RISO_INK} strokeWidth="3" strokeLinejoin="round" />;
+}
+
+function Cloud({ x, y, s }: { x: number; y: number; s: number }) {
+  return (
+    <g transform={`translate(${x} ${y}) scale(${s})`}>
+      <path
+        d="M -70 20 Q -78 -8 -48 -12 Q -40 -42 -6 -36 Q 14 -58 42 -38 Q 76 -40 72 -6 Q 92 6 74 22 Z"
+        fill={CREAM}
+        stroke={RISO_INK}
+        strokeWidth="3"
+        strokeLinejoin="round"
+      />
+    </g>
   );
 }
 
@@ -361,13 +658,7 @@ function SlotText({ text }: { text: string }) {
         // Rolling letters keep the final letter's case so the width barely
         // changes — otherwise the line re-wraps while it spins.
         const roll = REEL[(tick * 7 + i * 11) % REEL.length];
-        const shown = settled
-          ? c
-          : /[a-z]/.test(c)
-            ? roll.toLowerCase()
-            : /[A-Z]/.test(c)
-              ? roll
-              : c;
+        const shown = settled ? c : /[a-z]/.test(c) ? roll.toLowerCase() : /[A-Z]/.test(c) ? roll : c;
         return (
           <span
             key={i}
@@ -380,103 +671,5 @@ function SlotText({ text }: { text: string }) {
         );
       })}
     </span>
-  );
-}
-
-// Swing pivot (golfer-local coords): the lead shoulder.
-const SHOULDER = { x: 12.5, y: -54 };
-
-function Golfer({
-  color,
-  shirt,
-  torsoRef,
-  armsRef,
-}: {
-  color: string;
-  /** Shirt color (the theme's flag color — a red Sunday shirt in Classic). */
-  shirt: string;
-  torsoRef: React.Ref<SVGGElement>;
-  armsRef: React.Ref<SVGGElement>;
-}) {
-  // Filled silhouette in a real address posture: feet at (0,0), facing the
-  // target (+x), bent from the hips with flexed knees and the head over the
-  // ball. Arms + club pivot at the lead shoulder for the swing.
-  return (
-    <g transform={`translate(${TEE_X} ${GROUND})`}>
-      {/* Shoes */}
-      <path d="M -12.5 0 Q -12.5 -3.6 -8.6 -3.6 L -3.8 -3.4 Q -2.6 -1.6 -3.2 0 Z" fill={color} />
-      <path d="M 4.4 0 Q 4.4 -3.6 7.6 -3.6 L 11.2 -3.4 Q 14.2 -2 14.2 0 Z" fill={color} />
-      {/* Legs — slight knee flex */}
-      <path
-        d="M -7.4 -34 Q -10.4 -25 -9.2 -17 L -9.4 -3.2 L -4.2 -3.2 L -4.6 -17 Q -3.6 -24.5 0 -28.8 Q 3.4 -24.5 4.4 -17.2 L 5 -3.2 L 10.4 -3.2 L 10.2 -17.4 Q 10 -27 6.4 -34.2 Z"
-        fill={color}
-      />
-      <g ref={torsoRef}>
-        {/* Torso, tilted toward the ball */}
-        <path
-          d="M -8.4 -32.8 L 0.2 -55.2 Q 3.6 -58.9 11.4 -57.8 Q 15.8 -56.9 14.8 -52.2 L 7.8 -32.8 Z"
-          fill={shirt}
-          stroke={color}
-          strokeWidth="0.6"
-        />
-        {/* Belt */}
-        <path d="M -8.6 -33.2 L 7.9 -33.2" stroke={color} strokeWidth="1.6" />
-        {/* Head + cap, eyes on the ball */}
-        <path d="M 12.4 -57 L 14.6 -60" stroke={color} strokeWidth="3.4" strokeLinecap="round" />
-        <circle cx="16.4" cy="-62" r="4.6" fill={color} />
-        <path
-          d="M 11.8 -63 Q 12.6 -68 16.9 -67.7 Q 20.6 -67.4 21 -63.9 L 24.6 -63.1 Q 24.8 -62 21 -62.1 L 11.9 -62.4 Z"
-          fill={shirt}
-          stroke={color}
-          strokeWidth="0.6"
-        />
-        <g ref={armsRef}>
-          {/* Trail arm, then lead arm on top */}
-          <path d="M 9.8 -53 L 15.6 -31.6" stroke={color} strokeWidth="4.2" strokeLinecap="round" />
-          <path d="M 12.5 -54 L 16.8 -31" stroke={color} strokeWidth="4.8" strokeLinecap="round" />
-          {/* Shaft (steel), grip, glove, clubhead */}
-          <path d="M 17 -30.4 L 20.8 -2.6" stroke="#c9ced3" strokeWidth="1.25" strokeLinecap="round" />
-          <path d="M 17 -30.6 L 17.8 -25" stroke={color} strokeWidth="2.3" strokeLinecap="round" />
-          <circle cx="16.9" cy="-30.6" r="2.3" fill="#ffffff" />
-          <path d="M 17.6 -3.3 L 23.4 -3 Q 24.6 -1.6 23.3 -0.5 L 18 -0.7 Q 16.9 -1.9 17.6 -3.3 Z" fill="#2b2f33" />
-        </g>
-      </g>
-    </g>
-  );
-}
-
-function Tree({ x, scale, color }: { x: number; scale: number; color: string }) {
-  return (
-    <g transform={`translate(${x} ${GROUND}) scale(${scale})`}>
-      <rect x="-2.5" y="-26" width="5" height="26" fill={color} opacity="0.85" />
-      <ellipse cx="0" cy="-42" rx="17" ry="24" fill={color} />
-      <ellipse cx="-9" cy="-30" rx="12" ry="14" fill={color} />
-      <ellipse cx="10" cy="-32" rx="12" ry="15" fill={color} />
-    </g>
-  );
-}
-
-function Clouds({ color }: { color: string }) {
-  return (
-    <g opacity="0.55">
-      {[
-        { x: 90, y: 80, s: 1 },
-        { x: 360, y: 55, s: 0.7 },
-        { x: 720, y: 150, s: 0.85 },
-      ].map((c, i) => (
-        <motion.g
-          key={i}
-          initial={{ x: 0 }}
-          animate={{ x: 40 }}
-          transition={{ duration: 9 + i * 3, ease: "linear" }}
-        >
-          <g transform={`translate(${c.x} ${c.y}) scale(${c.s})`} fill={color}>
-            <ellipse cx="0" cy="0" rx="34" ry="12" />
-            <ellipse cx="-16" cy="-6" rx="16" ry="11" />
-            <ellipse cx="12" cy="-9" rx="18" ry="13" />
-          </g>
-        </motion.g>
-      ))}
-    </g>
   );
 }

@@ -10,6 +10,7 @@ import {
 } from "motion/react";
 import { useEffect, useImperativeHandle, useRef, useState } from "react";
 import { landingRotation, type WheelEntry } from "@/lib/sim-wheel";
+import { RisoBallArt } from "./riso-ball";
 import { sfx } from "./sound";
 
 export type WheelHandle = {
@@ -21,13 +22,15 @@ export type WheelHandle = {
    * shows it once the reveal is over.
    */
   spinAway: (winnerIndex: number) => Promise<void>;
+  /** On-screen box of the hub golf ball — where the reveal picks it up. */
+  hubRect: () => DOMRect | null;
 };
 
 type DisplaySlice = { id: string; name: string; sweep: number; color: string };
 
 const R = 200; // SVG radius (viewBox units)
 const LABEL_R = R - 16;
-const HUB_R = 26;
+const HUB_R = 30;
 const MORPH_MS = 0.5;
 
 function polar(angleDeg: number, r: number): [number, number] {
@@ -86,6 +89,7 @@ export function Wheel({
   colors,
   winnerId,
   soundOn,
+  faded = false,
   handleRef,
 }: {
   slices: WheelEntry[];
@@ -93,6 +97,8 @@ export function Wheel({
   /** Highlighted slice after a spin (others dim). */
   winnerId: string | null;
   soundOn: boolean;
+  /** Fade the wheel out (the tee-shot reveal has taken over the hub ball). */
+  faded?: boolean;
   handleRef: React.Ref<WheelHandle>;
 }) {
   const reduceMotion = useReducedMotion();
@@ -100,6 +106,7 @@ export function Wheel({
   const displayRef = useRef(display);
   const soundRef = useRef(soundOn);
   const containerRef = useRef<HTMLDivElement>(null);
+  const hubRef = useRef<HTMLDivElement>(null);
 
   const rotation = useMotionValue(0);
   const velocity = useVelocity(rotation);
@@ -194,6 +201,9 @@ export function Wheel({
   useImperativeHandle(
     handleRef,
     () => ({
+      hubRect() {
+        return hubRef.current?.getBoundingClientRect() ?? null;
+      },
       async spinAway(winnerIndex: number) {
         const arcs = displayRef.current;
         let start = 0;
@@ -242,7 +252,12 @@ export function Wheel({
   }, []);
 
   return (
-    <div ref={containerRef} className="relative mx-auto aspect-square w-full max-w-[min(440px,80vw)]">
+    <motion.div
+      ref={containerRef}
+      className="relative mx-auto aspect-square w-full max-w-[min(440px,80vw)]"
+      animate={{ opacity: faded ? 0 : 1 }}
+      transition={{ duration: faded ? 0.35 : 0.5 }}
+    >
       {/* Pointer */}
       <motion.div
         className="absolute left-1/2 top-[-10px] z-10 -ml-[15px] origin-top drop-shadow-md"
@@ -328,14 +343,20 @@ export function Wheel({
               const [x, y] = polar(s.start, R + 1);
               return <circle key={`peg-${s.id}`} cx={x} cy={y} r={2.6} fill="var(--sim-pointer)" stroke="rgba(0,0,0,0.3)" strokeWidth="0.8" />;
             })}
-          <circle r={HUB_R} fill="var(--sim-hub)" stroke="rgba(0,0,0,0.45)" strokeWidth="2.5" />
-          <circle r={HUB_R * 0.42} fill="#fff" stroke="rgba(0,0,0,0.18)" strokeWidth="1" />
-          {[0, 60, 120, 180, 240, 300].map((a) => {
-            const [x, y] = polar(a, HUB_R * 0.22);
-            return <circle key={a} cx={x} cy={y} r={1.1} fill="rgba(0,0,0,0.18)" />;
-          })}
+          <circle r={HUB_R + 5} fill="var(--sim-hub)" stroke="rgba(0,0,0,0.45)" strokeWidth="2" />
         </svg>
       </motion.div>
-    </div>
+      {/* The hub golf ball sits still on the axle while the wheel turns —
+          the tee-shot reveal picks this exact ball up. */}
+      <div
+        ref={hubRef}
+        className="pointer-events-none absolute left-1/2 top-1/2 aspect-square -translate-x-1/2 -translate-y-1/2"
+        style={{ width: `${((2 * HUB_R) / (2 * R + 16)) * 100}%` }}
+      >
+        <svg viewBox="-50 -50 100 100" className="h-full w-full overflow-visible">
+          <RisoBallArt outline={2.5} />
+        </svg>
+      </div>
+    </motion.div>
   );
 }
