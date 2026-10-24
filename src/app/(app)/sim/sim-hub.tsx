@@ -20,11 +20,13 @@ import { Wheel, type WheelHandle } from "./wheel";
 export function SimHub({
   data,
   isAdmin,
+  viewerId,
   initialTheme,
   fontClassName,
 }: {
   data: SimHubData;
   isAdmin: boolean;
+  viewerId: string;
   initialTheme: SimThemeId;
   fontClassName: string;
 }) {
@@ -271,6 +273,8 @@ export function SimHub({
             />
             <PlayersPanel
               players={view.players}
+              viewerId={viewerId}
+              isAdmin={isAdmin}
               settings={view.settings}
               skipped={skipped}
               adjustTallies={adjustTallies}

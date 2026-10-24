@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { broadcastChange } from "@/lib/events";
-import { requireSimApi } from "@/lib/sim";
+import { canRemovePlayer, requireSimApi } from "@/lib/sim";
 
 /** Check / uncheck a player ("playing tonight"). */
 export async function PATCH(
@@ -34,16 +34,19 @@ export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { error } = await requireSimApi();
+  const { viewer, error } = await requireSimApi();
   if (error) return error;
   const { id } = await params;
 
   const player = await prisma.simPlayer.findUnique({
     where: { id },
-    select: { id: true, _count: { select: { plays: true } } },
+    select: { id: true, userId: true, _count: { select: { plays: true } } },
   });
   if (!player) {
     return NextResponse.json({ error: "Player not found" }, { status: 404 });
+  }
+  if (!canRemovePlayer(viewer, player)) {
+    return NextResponse.json({ error: "Only an admin can remove another player" }, { status: 403 });
   }
 
   await prisma.$transaction(async (tx) => {
