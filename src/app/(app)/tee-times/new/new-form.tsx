@@ -250,9 +250,9 @@ function NewTeeTimeForm({
             </div>
             {needsHostOk && (
               <p className="mt-2 rounded-md bg-sky-50 px-3 py-2 text-xs text-sky-900 dark:bg-sky-900/30 dark:text-sky-200">
-                🏠 It&apos;s {venue!.hostName}&apos;s place, so this goes to{" "}
-                {venue!.hostName} to OK. The group hears about it once
-                they say it&apos;s on.
+                {`🏠 It's ${venue!.hostName}'s place, so this goes to ${
+                  venue!.hostName
+                } to OK. The group hears about it once they say it's on.`}
               </p>
             )}
           </div>
