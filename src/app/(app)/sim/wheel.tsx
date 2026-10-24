@@ -255,6 +255,7 @@ export function Wheel({
     <motion.div
       ref={containerRef}
       className="relative mx-auto aspect-square w-full max-w-[min(440px,80vw)]"
+      initial={false}
       animate={{ opacity: faded ? 0 : 1 }}
       transition={{ duration: faded ? 0.35 : 0.5 }}
     >
