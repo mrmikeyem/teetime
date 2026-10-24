@@ -30,7 +30,7 @@ export default async function TeeTimesPage() {
 
   // Feed, tee-time list, and live-event ids are independent — run them
   // concurrently rather than serializing query round-trips.
-  const [{ items: feedItems, unread: unreadCount }, teeTimes, liveEventIds] =
+  const [{ items: feedItems, unread: unreadCount }, teeTimes, liveEventIds, me] =
     await Promise.all([
       getResolvedFeed(session.user.id, 10),
       prisma.teeTime.findMany({
@@ -53,6 +53,10 @@ export default async function TeeTimesPage() {
         },
         orderBy: { startDate: "asc" },
         select: { id: true },
+      }),
+      prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { simAccess: true },
       }),
     ]);
 
@@ -151,7 +155,10 @@ export default async function TeeTimesPage() {
             initialItems={feedItems}
             initialUnread={unreadCount}
           />
-          <HeaderMenu isAdmin={session.user.role === "ADMIN"}>
+          <HeaderMenu
+            isAdmin={session.user.role === "ADMIN"}
+            showSim={me?.simAccess ?? false}
+          >
             <form
               action={async () => {
                 "use server";

@@ -14,6 +14,7 @@ type UserRowProps = {
     createdAt: string;
     teeTimeCount: number;
     isProtected: boolean;
+    simAccess: boolean;
   };
   isSelf: boolean;
 };
@@ -25,6 +26,27 @@ export function UserRow({ user, isSelf }: UserRowProps) {
   const [deleteArmed, setDeleteArmed] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
+  const [simAccess, setSimAccess] = useState(user.simAccess);
+  const [simBusy, setSimBusy] = useState(false);
+
+  async function toggleSim() {
+    if (simBusy) return;
+    setError("");
+    setSimBusy(true);
+    const res = await fetch(`/api/admin/users/${user.id}/sim-access`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ simAccess: !simAccess }),
+    });
+    setSimBusy(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error || "Couldn't change sim access");
+      return;
+    }
+    setSimAccess(!simAccess);
+    router.refresh();
+  }
 
   async function changeRole(next: "BASIC" | "ADMIN" | "EVENT") {
     if (next === role || roleBusy) return;
@@ -111,6 +133,16 @@ export function UserRow({ user, isSelf }: UserRowProps) {
             {" · "}
             {user.teeTimeCount} tee time{user.teeTimeCount === 1 ? "" : "s"}
           </p>
+          <label className="mt-1.5 inline-flex cursor-pointer items-center gap-1.5 text-xs text-gray-600 dark:text-gray-300">
+            <input
+              type="checkbox"
+              checked={simAccess}
+              disabled={simBusy}
+              onChange={toggleSim}
+              className="h-3.5 w-3.5 accent-emerald-700"
+            />
+            🏌️ Sim wheel access
+          </label>
         </div>
         {!isSelf && (
           <div className="flex flex-wrap items-center gap-2">

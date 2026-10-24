@@ -10,9 +10,11 @@ import { useState } from "react";
  */
 export function HeaderMenu({
   isAdmin,
+  showSim,
   children,
 }: {
   isAdmin: boolean;
+  showSim: boolean;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -22,6 +24,7 @@ export function HeaderMenu({
 
   const links: { href: string; label: string }[] = [
     { href: "/events", label: "⛳ Events" },
+    ...(showSim ? [{ href: "/sim", label: "🏌️ Sim wheel" }] : []),
     { href: "/teams", label: "🎲 Teams" },
     { href: "/profile", label: "👤 Profile" },
     { href: "/feedback", label: "💬 Feedback" },
