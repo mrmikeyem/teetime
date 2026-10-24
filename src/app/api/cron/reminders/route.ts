@@ -9,6 +9,7 @@ import { startOfTodayInAppTz } from "@/lib/time";
 import { getCachedRoundSummary } from "@/lib/weather-summary-cache";
 import { sendPushToUser } from "@/lib/push";
 import { recordNotificationOnce } from "@/lib/notification-feed";
+import { proposeStandingSimNights } from "@/lib/sim-nights";
 
 const REMIND_BEFORE_MIN = 60;
 const WINDOW_MIN = 5;
@@ -28,7 +29,11 @@ export async function POST(req: Request) {
   const windowEnd = new Date(now.getTime() + (REMIND_BEFORE_MIN + WINDOW_MIN) * 60 * 1000);
 
   const teeTimes = await prisma.teeTime.findMany({
-    where: { teeOffAt: { gte: windowStart, lte: windowEnd } },
+    where: {
+      teeOffAt: { gte: windowStart, lte: windowEnd },
+      // A hosted sim night the host hasn't OK'd (or called off) isn't on.
+      OR: [{ simStatus: null }, { simStatus: "CONFIRMED" }],
+    },
     include: {
       members: {
         include: {
@@ -75,10 +80,7 @@ export async function POST(req: Request) {
         await recordNotificationOnce({
           userId: m.userId,
           type: "reminder",
-          title:
-            t.type === "TOURNAMENT"
-              ? `${t.isShotgun ? "Shotgun" : "Tournament"} in 1 hour`
-              : "Tee time in 1 hour",
+          title: reminderTitle(t),
           body: `${t.name ? t.name + " · " : ""}${t.course}`,
           url: `/tee-times/${t.id}`,
         });
@@ -112,6 +114,7 @@ export async function POST(req: Request) {
           whatToExpect,
           isTournament: t.type === "TOURNAMENT",
           isShotgun: t.isShotgun,
+          isSim: t.type === "SIM",
         });
 
         await sendMail({ to: m.user.email, subject, text, html, kind: "reminder" });
@@ -119,9 +122,7 @@ export async function POST(req: Request) {
         // Fire push to any subscribed devices for this user. Failure here
         // shouldn't kill the email send — fire-and-forget with a logged error.
         sendPushToUser(m.userId, {
-          title: t.type === "TOURNAMENT"
-            ? `${t.isShotgun ? "Shotgun" : "Tournament"} in 1 hour`
-            : "Tee time in 1 hour",
+          title: reminderTitle(t),
           body: `${t.name ? t.name + " · " : ""}${t.course}`,
           url: `/tee-times/${t.id}`,
           tag: `reminder-${t.id}`,
@@ -143,6 +144,12 @@ export async function POST(req: Request) {
     }
   }
 
+  // Standing sim nights get proposed to their host from Monday of their week.
+  const simNights = await proposeStandingSimNights(now).catch((err) => {
+    console.error("[cron] proposeStandingSimNights failed:", err);
+    return null;
+  });
+
   const url = new URL(req.url);
   const forceCleanup = url.searchParams.get("force") === "cleanup";
   const cleanup =
@@ -157,8 +164,16 @@ export async function POST(req: Request) {
     skippedPrefs,
     failed,
     errors,
+    simNights,
     cleanup,
   });
+}
+
+function reminderTitle(t: { type: string; isShotgun: boolean }) {
+  if (t.type === "TOURNAMENT") {
+    return `${t.isShotgun ? "Shotgun" : "Tournament"} in 1 hour`;
+  }
+  return t.type === "SIM" ? "Sim night in 1 hour" : "Tee time in 1 hour";
 }
 
 /**

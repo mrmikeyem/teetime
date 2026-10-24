@@ -267,6 +267,7 @@ function CalendarCell({
         <div className="space-y-0.5">
           <div className="truncate font-semibold text-emerald-800 dark:text-emerald-200">
             {firstTee.type === "TOURNAMENT" && <span aria-hidden>🏆 </span>}
+            {firstTee.type === "SIM" && <span aria-hidden>🖥️ </span>}
             {firstTee.type === "TOURNAMENT" && firstTee.name
               ? firstTee.name
               : firstTee.course}

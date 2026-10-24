@@ -7,6 +7,9 @@ export type IcsEvent = {
   updatedAt: Date;
   notes: string | null;
   durationMinutes?: number;
+  type?: string;
+  /** Hosted sim night still waiting on the host → TENTATIVE. */
+  tentative?: boolean;
 };
 
 const DEFAULT_DURATION_MIN = 4 * 60; // 4 hours
@@ -44,7 +47,9 @@ export function buildIcs(opts: {
       start.getTime() + (e.durationMinutes ?? DEFAULT_DURATION_MIN) * 60_000
     );
     const sequence = Math.floor(e.updatedAt.getTime() / 1000);
-    const summary = `Tee time — ${e.course}`;
+    const summary = `${e.type === "SIM" ? "Sim" : "Tee time"} — ${e.course}${
+      e.tentative ? " (waiting on host)" : ""
+    }`;
     const description = e.notes ? e.notes : "";
 
     lines.push(
@@ -57,7 +62,7 @@ export function buildIcs(opts: {
       `SUMMARY:${escapeText(summary)}`,
       `LOCATION:${escapeText(e.course)}`,
       `DESCRIPTION:${escapeText(description)}`,
-      "STATUS:CONFIRMED",
+      `STATUS:${e.tentative ? "TENTATIVE" : "CONFIRMED"}`,
       "TRANSP:OPAQUE",
       "END:VEVENT"
     );

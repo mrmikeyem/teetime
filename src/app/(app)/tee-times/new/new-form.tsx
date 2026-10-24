@@ -13,6 +13,16 @@ import {
   type TournamentFieldsState,
 } from "../tournament-fields";
 
+export type SimVenueOption = {
+  id: string;
+  name: string;
+  hostUserId: string | null;
+  hostName: string | null;
+  standingTime: string | null;
+};
+
+type FormType = "TEE_TIME" | "TOURNAMENT" | "SIM";
+
 const COURSE_SHORTCUTS = [
   "Kings Walk",
   "Valley Golf Course",
@@ -23,20 +33,24 @@ const COURSE_SHORTCUTS = [
 
 export function NewTeeTimePage({
   defaults,
+  venues,
 }: {
   defaults: { weeknight: string | null; weekend: string | null };
+  venues: SimVenueOption[];
 }) {
   return (
     <Suspense>
-      <NewTeeTimeForm defaults={defaults} />
+      <NewTeeTimeForm defaults={defaults} venues={venues} />
     </Suspense>
   );
 }
 
 function NewTeeTimeForm({
   defaults,
+  venues,
 }: {
   defaults: { weeknight: string | null; weekend: string | null };
+  venues: SimVenueOption[];
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -54,7 +68,10 @@ function NewTeeTimeForm({
     resolveTeeOffDefault(initialDate, defaults.weeknight, defaults.weekend)
   );
   const [timeTouched, setTimeTouched] = useState(false);
-  const [type, setType] = useState<"TEE_TIME" | "TOURNAMENT">("TEE_TIME");
+  const [type, setType] = useState<FormType>(
+    searchParams.get("type") === "sim" ? "SIM" : "TEE_TIME"
+  );
+  const [simVenueId, setSimVenueId] = useState(venues[0]?.id ?? "");
   const [tournament, setTournament] = useState<TournamentFieldsState>(
     EMPTY_TOURNAMENT_FIELDS
   );
@@ -63,6 +80,18 @@ function NewTeeTimeForm({
   const creator: PickerItem | null = session?.user
     ? { kind: "user", id: session.user.id, name: session.user.name }
     : null;
+
+  const venue = venues.find((v) => v.id === simVenueId) ?? null;
+  // Booking at someone else's place goes to them to OK first.
+  const needsHostOk =
+    type === "SIM" &&
+    venue?.hostUserId != null &&
+    venue.hostUserId !== session?.user?.id;
+
+  function pickVenue(v: SimVenueOption) {
+    setSimVenueId(v.id);
+    if (!timeTouched && v.standingTime) setTime(v.standingTime);
+  }
 
   function addStaged(item: PickerItem) {
     setStaged((prev) =>
@@ -84,7 +113,7 @@ function NewTeeTimeForm({
     setLoading(true);
 
     const formData = new FormData(e.currentTarget);
-    const courseValue = course.trim();
+    const courseValue = type === "SIM" ? venue?.name ?? "" : course.trim();
     const notes = (formData.get("notes") as string).trim() || null;
 
     const teeOffAt = new Date(`${date}T${time}`).toISOString();
@@ -97,6 +126,7 @@ function NewTeeTimeForm({
         teeOffAt,
         partySize: type === "TOURNAMENT" ? null : partySize,
         type,
+        simVenueId: type === "SIM" ? simVenueId : null,
         name: type === "TOURNAMENT" ? name : null,
         teamSize: type === "TOURNAMENT" ? teamSize : null,
         notes,
@@ -141,7 +171,7 @@ function NewTeeTimeForm({
 
         <div>
           <label className="block text-sm font-medium">Type</label>
-          <div className="mt-1 grid grid-cols-2 gap-2">
+          <div className="mt-1 grid grid-cols-3 gap-2">
             <button
               type="button"
               onClick={() => setType("TEE_TIME")}
@@ -164,6 +194,21 @@ function NewTeeTimeForm({
             >
               🏆 Tournament
             </button>
+            <button
+              type="button"
+              onClick={() => {
+                setType("SIM");
+                if (venue) pickVenue(venue);
+              }}
+              disabled={venues.length === 0}
+              className={`rounded-lg border px-3 py-2 text-sm font-semibold disabled:opacity-50 ${
+                type === "SIM"
+                  ? "border-sky-700 bg-sky-700 text-white"
+                  : "border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:border-sky-700"
+              }`}
+            >
+              🖥️ Sim
+            </button>
           </div>
         </div>
 
@@ -184,33 +229,64 @@ function NewTeeTimeForm({
           </div>
         )}
 
-        <div>
-          <label className="block text-sm font-medium" htmlFor="course">
-            {type === "TOURNAMENT" ? "Venue" : "Course"}
-          </label>
-          <input
-            id="course"
-            name="course"
-            ref={courseRef}
-            required
-            value={course}
-            onChange={(e) => setCourse(e.target.value)}
-            placeholder="Kings Walk, Grand Forks"
-            className="mt-1 block w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2.5 text-sm focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
-          />
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {COURSE_SHORTCUTS.map((c) => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => setCourse(c)}
-                className="rounded-full border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:border-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 hover:text-emerald-800 dark:hover:text-emerald-300"
-              >
-                {c}
-              </button>
-            ))}
+        {type === "SIM" && (
+          <div>
+            <label className="block text-sm font-medium">Simulator</label>
+            <div className="mt-1 grid grid-cols-2 gap-2">
+              {venues.map((v) => (
+                <button
+                  key={v.id}
+                  type="button"
+                  onClick={() => pickVenue(v)}
+                  className={`rounded-lg border px-3 py-2 text-sm font-semibold ${
+                    simVenueId === v.id
+                      ? "border-sky-700 bg-sky-700 text-white"
+                      : "border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:border-sky-700"
+                  }`}
+                >
+                  {v.name}
+                </button>
+              ))}
+            </div>
+            {needsHostOk && (
+              <p className="mt-2 rounded-md bg-sky-50 px-3 py-2 text-xs text-sky-900 dark:bg-sky-900/30 dark:text-sky-200">
+                🏠 It&apos;s {venue!.hostName}&apos;s place, so this goes to{" "}
+                {venue!.hostName} to OK. The group hears about it once
+                they say it&apos;s on.
+              </p>
+            )}
           </div>
-        </div>
+        )}
+
+        {type !== "SIM" && (
+          <div>
+            <label className="block text-sm font-medium" htmlFor="course">
+              {type === "TOURNAMENT" ? "Venue" : "Course"}
+            </label>
+            <input
+              id="course"
+              name="course"
+              ref={courseRef}
+              required
+              value={course}
+              onChange={(e) => setCourse(e.target.value)}
+              placeholder="Kings Walk, Grand Forks"
+              className="mt-1 block w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2.5 text-sm focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
+            />
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {COURSE_SHORTCUTS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setCourse(c)}
+                  className="rounded-full border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:border-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 hover:text-emerald-800 dark:hover:text-emerald-300"
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="flex gap-2">
           <div className="min-w-0 flex-1">
@@ -258,7 +334,9 @@ function NewTeeTimeForm({
           </div>
         </div>
 
-        <WeatherPreview course={course} date={date} time={time} />
+        {type !== "SIM" && (
+          <WeatherPreview course={course} date={date} time={time} />
+        )}
 
         {type === "TOURNAMENT" && (
           <>
@@ -285,11 +363,11 @@ function NewTeeTimeForm({
           </>
         )}
 
-        {type === "TEE_TIME" && (
+        {type !== "TOURNAMENT" && (
           <div>
             <label className="block text-sm font-medium">Party size</label>
             <div className="mt-1 flex gap-2">
-              {[2, 3, 4, 5].map((n) => (
+              {(type === "SIM" ? [2, 3, 4, 5, 6] : [2, 3, 4, 5]).map((n) => (
                 <button
                   key={n}
                   type="button"
@@ -384,7 +462,13 @@ function NewTeeTimeForm({
           disabled={loading}
           className="w-full rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-50"
         >
-          {loading ? "Saving..." : "Create tee time"}
+          {loading
+            ? "Saving..."
+            : type === "SIM"
+            ? needsHostOk
+              ? `Ask ${venue?.hostName ?? "the host"}`
+              : "Book sim night"
+            : "Create tee time"}
         </button>
       </form>
     </main>

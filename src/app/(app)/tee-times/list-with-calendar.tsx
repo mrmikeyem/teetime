@@ -15,8 +15,10 @@ export type TeeTimeListItem = {
   teeOffAt: string;
   partySize: number | null;
   teamSize: number | null;
-  type: "TEE_TIME" | "TOURNAMENT";
+  type: "TEE_TIME" | "TOURNAMENT" | "SIM";
   creatorName: string;
+  /** Set only for a sim night at a hosted venue — the host's say-so. */
+  sim: { status: "PENDING" | "CONFIRMED" | "CANCELLED"; hostName: string } | null;
   /** True when the tee time belongs to an event round — it renders collapsed
    *  under the event's card instead of as its own list entry. */
   inEvent: boolean;
@@ -90,6 +92,7 @@ export function ListWithCalendar({
             const t = entry.teeTime;
             const teeOff = new Date(t.teeOffAt);
             const isTournament = t.type === "TOURNAMENT";
+            const calledOff = t.sim?.status === "CANCELLED";
             const confirmed = t.members.filter((m) => m.confirmed).length;
             const tooManyConfirmed =
               !isTournament && t.partySize != null && confirmed > t.partySize;
@@ -100,12 +103,15 @@ export function ListWithCalendar({
             return (
               <li
                 key={t.id}
-                className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900"
+                className={`rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900 ${
+                  calledOff ? "opacity-60" : ""
+                }`}
               >
                 <Link href={`/tee-times/${t.id}`} className="block space-y-1">
                   <div className="flex items-baseline justify-between gap-2">
-                    <h2 className="font-semibold">
+                    <h2 className={`font-semibold ${calledOff ? "line-through" : ""}`}>
                       {isTournament && <span aria-hidden>🏆 </span>}
+                      {t.type === "SIM" && <span aria-hidden>🖥️ </span>}
                       {isTournament && t.name ? t.name : t.course}
                     </h2>
                     <span className="text-xs text-gray-500 dark:text-gray-400">
@@ -121,12 +127,24 @@ export function ListWithCalendar({
                     <span>
                       {formatTime(teeOff)} — {t.creatorName}
                     </span>
-                    <Countdown
-                      teeOffAt={t.teeOffAt}
-                      className="text-xs text-emerald-700 dark:text-emerald-400"
-                    />
+                    {!calledOff && (
+                      <Countdown
+                        teeOffAt={t.teeOffAt}
+                        className="text-xs text-emerald-700 dark:text-emerald-400"
+                      />
+                    )}
                   </div>
                   <div className="flex flex-wrap items-center gap-2 text-xs">
+                    {t.sim?.status === "PENDING" && (
+                      <span className="rounded-full bg-sky-100 px-2 py-0.5 font-semibold text-sky-800 dark:bg-sky-900/40 dark:text-sky-300">
+                        Waiting on {t.sim.hostName}
+                      </span>
+                    )}
+                    {calledOff && (
+                      <span className="rounded-full bg-red-100 px-2 py-0.5 font-semibold text-red-700 dark:bg-red-900/40 dark:text-red-300">
+                        Off — {t.sim!.hostName} can&apos;t host
+                      </span>
+                    )}
                     {isTournament ? (
                       <span className="rounded-full bg-amber-100 px-2 py-0.5 font-semibold text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
                         Tournament{t.teamSize ? ` · ${t.teamSize}-man` : ""} ·{" "}

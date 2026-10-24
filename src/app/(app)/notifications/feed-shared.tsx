@@ -20,10 +20,18 @@ export type FeedItem = {
     | "already_on"
     | "past"
     | "gone"
+    | "host_pending"
+    | "called_off"
     | "none";
 };
 
-export type InlineAction = "confirm" | "decline" | "join" | "leave";
+export type InlineAction =
+  | "confirm"
+  | "decline"
+  | "join"
+  | "leave"
+  | "sim_on"
+  | "sim_off";
 
 /** Success toast text for each inline action. */
 export function actionFlash(action: InlineAction): string {
@@ -34,6 +42,10 @@ export function actionFlash(action: InlineAction): string {
       return "Joined ✓";
     case "leave":
       return "Left";
+    case "sim_on":
+      return "It's on ✓";
+    case "sim_off":
+      return "Called off";
     default:
       return "Declined";
   }
@@ -199,6 +211,29 @@ function ActionRow({
           </button>
         </div>
       );
+    case "host_pending":
+      return (
+        <div className="mt-2 flex gap-2">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => onAct(item, "sim_on")}
+            className={`${btn} bg-emerald-700 text-white hover:bg-emerald-800`}
+          >
+            It&apos;s on
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => onAct(item, "sim_off")}
+            className={`${btn} bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600`}
+          >
+            Not this time
+          </button>
+        </div>
+      );
+    case "called_off":
+      return <StatusPill muted>Called off</StatusPill>;
     case "already_on":
       return <StatusPill>You&apos;re in ✓</StatusPill>;
     case "full":

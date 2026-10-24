@@ -3,7 +3,13 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-export function DeleteButton({ teeTimeId }: { teeTimeId: string }) {
+export function DeleteButton({
+  teeTimeId,
+  label = "Delete tee time",
+}: {
+  teeTimeId: string;
+  label?: string;
+}) {
   const router = useRouter();
   const [armed, setArmed] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -51,7 +57,7 @@ export function DeleteButton({ teeTimeId }: { teeTimeId: string }) {
           : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-300"
       }`}
     >
-      {busy ? "Deleting…" : armed ? "Tap again to confirm" : "Delete tee time"}
+      {busy ? "Deleting…" : armed ? "Tap again to confirm" : label}
     </button>
   );
 }

@@ -17,7 +17,8 @@ react-hook-form · Tailwind · `@anthropic-ai/sdk` (weather blurbs).
 |---|---|---|
 | `User` | `users` | role `BASIC\|ADMIN\|EVENT` (EVENT = event-only guest: sees everything, excluded from group-wide fan-outs); **`email` is nullable**; unique `username`; `lastLoginAt` |
 | `Guest` | `guests` | non-account players admins/members can add to rounds |
-| `TeeTime` | `tee_times` | one model, two variants via `type` (`TEE_TIME`/`TOURNAMENT`); tournament-only fields (format, entryFee, teamSize, signupDeadline, isShotgun, rangeOpensTime…); `lat`/`lon` geocoded from course name; nullable `eventRoundId` links it into an event round (SetNull on round delete; **cleanup cron never sweeps event tee times**) |
+| `TeeTime` | `tee_times` | one model, three variants via `type` (`TEE_TIME`/`TOURNAMENT`/`SIM`); SIM rows carry `simVenueId` + `simStatus` (PENDING/CONFIRMED/CANCELLED, null unless the venue has a host), `course` = venue name, never geocoded; tournament-only fields (format, entryFee, teamSize, signupDeadline, isShotgun, rangeOpensTime…); `lat`/`lon` geocoded from course name; nullable `eventRoundId` links it into an event round (SetNull on round delete; **cleanup cron never sweeps event tee times**) |
+| `SimVenue` | `sim_venues` | simulator venues for SIM tee times (seeded: Brice's Garage, Albatros); optional `hostUserId` (host's OK required for nights there) + standing night (`standingDay` 0=Sun..6, `standingTime` HH:MM CT); edited at `/admin/sim-venues` |
 | `TeeTimeMember` | `tee_time_members` | exactly one of `userId`/`guestId` (CHECK constraint); `confirmed`; `remindedAt` dedupes the 1h reminder; unique per (teeTime,user) and (teeTime,guest) |
 | `PushSubscription` | `push_subscriptions` | web-push endpoints; **origin-scoped** — a domain change invalidates them all |
 | `NotificationPreference` | `notification_preferences` | per-user opt-outs incl. `unsubscribedAll` (set by email unsubscribe link) |
@@ -51,6 +52,7 @@ react-hook-form · Tailwind · `@anthropic-ai/sdk` (weather blurbs).
 
 ### API (all return JSON; auth = session unless noted)
 - `POST /api/tee-times` create (+creator auto-member, +picked members) · `PATCH|DELETE /api/tee-times/[id]`
+- `POST /api/tee-times/[id]/sim-status` `{on}` — host-only on/off for a hosted sim night · `PATCH /api/admin/sim-venues/[id]` — host + standing night (ADMIN)
 - `POST|PATCH|DELETE /api/tee-times/[id]/members` — join/add, confirm-toggle, remove. Each mutation: DB write → `broadcastChange()` → notification fan-out
 - `GET /api/events` — SSE stream (see Real-time)
 - `/api/event/*` (singular — `/api/events` was taken by SSE) — the events module. `POST /api/event` + `PATCH|DELETE /api/event/[id]` (admin). Per event `[id]`: `POST rounds` (**schedule builder**: date+course+times[] → round + geocoded tee times in one shot, deliberately NO notifyNewTeeTime) · `PATCH|DELETE rounds/[roundId]` (delete removes its tee times too) · `PUT rounds/[roundId]/players` (mulligan/drive toggles + per-round team override; any session) · `POST teams`, `PATCH|DELETE teams/[teamId]`, `POST teams/bulk` (generator save — replaces teams+assignments) · `POST participants`, `PATCH|DELETE participants/[participantId]` · `PUT scores` (front9/back9 upsert, any session, enteredBy stamped) · `POST games`, `PATCH|DELETE games/[gameId]` (winner/details; delete admin) · `POST announce` (admin; the ONE schedule nudge — bell + push to everyone incl. EVENT users)
@@ -90,7 +92,8 @@ react-hook-form · Tailwind · `@anthropic-ai/sdk` (weather blurbs).
 | `weather-summary-cache.ts` | sliding-TTL in-process cache for the blurb (24h when ≥7d out → 30min day-of; null summaries retry in 10min). Keyed on tee time id, invalidated by teeOff/coords/course change. Callers: detail page + reminders cron. Works because prod is one systemd process |
 | `course-holes.ts` | course matcher (free-text `TeeTime.course` → aliases) + hole/wind relation math. Data: `course-hole-data.generated.ts` (8 OSM courses via `scripts/generate-hole-bearings.mjs`) + Lincoln Park manual |
 | `inbound-email.ts` | webhook signature verify (svix scheme, no dep), Resend received-email fetch, `forwardingMailboxes()` (Gmail auto-fwd member from headers), Haiku `email_kind` classification + booking extraction (JSON-schema + zod), `parseForwardingConfirmation()` (Google onboarding link), CT-wall-time→UTC |
-| `tournament.ts` | `parseTournamentFields` — validation for the TOURNAMENT variant |
+| `tournament.ts` | `parseTournamentFields` — validation for the TOURNAMENT variant (also accepts `SIM`) |
+| `sim-nights.ts` | hosted sim-night cores: `initialSimStatus`, `confirmSimNight`/`cancelSimNight` (host-only, broadcast + `notifySimNightStatus`), `proposeStandingSimNights` (cron, idempotent per venue+date) |
 | `time.ts` | America/Chicago helpers (`startOfTodayInAppTz`, `appTzWallTimeToUtc` for the schedule builder, `isoDateInAppTz`) — app displays Central, server runs UTC |
 | `golf-events.ts` | events-module core: `eventStatus()` (derived from dates), `getEventForHub()` (the hub include tree), `computeStandings()` (cumulative team strokes or individual points + leader line), `roundTeamId()` (override ?? default), `parseEventFields()` |
 | `event-report.ts` | AI reports for the hub, same cache discipline as weather-summary-cache: weekend **outlook** (multi-round forecast → Haiku, sliding TTL) + post-round **recap** (scores/mulligans/games → sports-writer paragraph, cached on a content hash so it regenerates only when data changes) |

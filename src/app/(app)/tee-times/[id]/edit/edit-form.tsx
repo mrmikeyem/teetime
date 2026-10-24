@@ -36,7 +36,7 @@ export function EditForm({
   initialPartySize: number;
   initialTeamSize: number;
   initialNotes: string;
-  initialType: "TEE_TIME" | "TOURNAMENT";
+  initialType: "TEE_TIME" | "TOURNAMENT" | "SIM";
   initialTournament: TournamentFieldsState;
 }) {
   const router = useRouter();
@@ -49,7 +49,10 @@ export function EditForm({
   const [partySize, setPartySize] = useState(initialPartySize);
   const [teamSize, setTeamSize] = useState(initialTeamSize);
   const [notes, setNotes] = useState(initialNotes);
-  const [type, setType] = useState<"TEE_TIME" | "TOURNAMENT">(initialType);
+  const [type, setType] = useState(initialType);
+  // A sim night's venue is fixed (it's the course), and it can't become a
+  // golf tee time — the form just edits time / size / notes.
+  const isSim = initialType === "SIM";
   const [tournament, setTournament] =
     useState<TournamentFieldsState>(initialTournament);
 
@@ -107,33 +110,42 @@ export function EditForm({
           </div>
         )}
 
-        <div>
-          <label className="block text-sm font-medium">Type</label>
-          <div className="mt-1 grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setType("TEE_TIME")}
-              className={`rounded-lg border px-3 py-2 text-sm font-semibold ${
-                type === "TEE_TIME"
-                  ? "border-emerald-700 bg-emerald-700 text-white"
-                  : "border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:border-emerald-700"
-              }`}
-            >
-              ⛳ Tee time
-            </button>
-            <button
-              type="button"
-              onClick={() => setType("TOURNAMENT")}
-              className={`rounded-lg border px-3 py-2 text-sm font-semibold ${
-                type === "TOURNAMENT"
-                  ? "border-amber-600 bg-amber-600 text-white"
-                  : "border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:border-amber-600"
-              }`}
-            >
-              🏆 Tournament
-            </button>
+        {isSim ? (
+          <div>
+            <label className="block text-sm font-medium">Simulator</label>
+            <p className="mt-1 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-3 py-2.5 text-sm">
+              🖥️ {course}
+            </p>
           </div>
-        </div>
+        ) : (
+          <div>
+            <label className="block text-sm font-medium">Type</label>
+            <div className="mt-1 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setType("TEE_TIME")}
+                className={`rounded-lg border px-3 py-2 text-sm font-semibold ${
+                  type === "TEE_TIME"
+                    ? "border-emerald-700 bg-emerald-700 text-white"
+                    : "border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:border-emerald-700"
+                }`}
+              >
+                ⛳ Tee time
+              </button>
+              <button
+                type="button"
+                onClick={() => setType("TOURNAMENT")}
+                className={`rounded-lg border px-3 py-2 text-sm font-semibold ${
+                  type === "TOURNAMENT"
+                    ? "border-amber-600 bg-amber-600 text-white"
+                    : "border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:border-amber-600"
+                }`}
+              >
+                🏆 Tournament
+              </button>
+            </div>
+          </div>
+        )}
 
         {type === "TOURNAMENT" && (
           <div>
@@ -152,31 +164,33 @@ export function EditForm({
           </div>
         )}
 
-        <div>
-          <label className="block text-sm font-medium" htmlFor="course">
-            {type === "TOURNAMENT" ? "Venue" : "Course"}
-          </label>
-          <input
-            id="course"
-            name="course"
-            required
-            value={course}
-            onChange={(e) => setCourse(e.target.value)}
-            className="mt-1 block w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2.5 text-sm focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
-          />
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {COURSE_SHORTCUTS.map((c) => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => setCourse(c)}
-                className="rounded-full border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:border-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 hover:text-emerald-800 dark:hover:text-emerald-300"
-              >
-                {c}
-              </button>
-            ))}
+        {!isSim && (
+          <div>
+            <label className="block text-sm font-medium" htmlFor="course">
+              {type === "TOURNAMENT" ? "Venue" : "Course"}
+            </label>
+            <input
+              id="course"
+              name="course"
+              required
+              value={course}
+              onChange={(e) => setCourse(e.target.value)}
+              className="mt-1 block w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2.5 text-sm focus:border-emerald-700 focus:ring-emerald-700 focus:outline-none"
+            />
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {COURSE_SHORTCUTS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setCourse(c)}
+                  className="rounded-full border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:border-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 hover:text-emerald-800 dark:hover:text-emerald-300"
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="flex gap-2">
           <div className="min-w-0 flex-1">
@@ -234,11 +248,11 @@ export function EditForm({
           </>
         )}
 
-        {type === "TEE_TIME" && (
+        {type !== "TOURNAMENT" && (
           <div>
             <label className="block text-sm font-medium">Party size</label>
             <div className="mt-1 flex gap-2">
-              {[2, 3, 4, 5].map((n) => (
+              {(isSim ? [2, 3, 4, 5, 6] : [2, 3, 4, 5]).map((n) => (
                 <button
                   key={n}
                   type="button"

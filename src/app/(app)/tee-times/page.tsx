@@ -38,6 +38,7 @@ export default async function TeeTimesPage() {
         where: { teeOffAt: { gte: startOfTodayInAppTz() } },
         include: {
           creator: { select: { id: true, name: true } },
+          simVenue: { select: { host: { select: { name: true } } } },
           members: {
             include: {
               user: { select: { id: true, name: true } },
@@ -131,6 +132,10 @@ export default async function TeeTimesPage() {
     // Event tee times stay out of the flat list (they collapse under their
     // event's card) but still feed the browse calendar.
     inEvent: t.eventRoundId != null,
+    sim:
+      t.simStatus != null
+        ? { status: t.simStatus, hostName: t.simVenue?.host?.name ?? "the host" }
+        : null,
     members: t.members.map((m) => ({
       name: m.user?.name ?? m.guest?.name ?? "(unknown)",
       confirmed: m.confirmed,

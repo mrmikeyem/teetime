@@ -27,6 +27,9 @@ export async function GET(
     where: {
       teeOffAt: { gte: startOfTodayInAppTz() },
       members: { some: { userId: user.id } },
+      // A sim night the host called off drops out of the feed. (Spelled as an
+      // OR: a bare NOT would also drop every null-status row — SQL NULL.)
+      OR: [{ simStatus: null }, { simStatus: { not: "CANCELLED" } }],
     },
     orderBy: { teeOffAt: "asc" },
     select: {
@@ -35,12 +38,17 @@ export async function GET(
       teeOffAt: true,
       updatedAt: true,
       notes: true,
+      type: true,
+      simStatus: true,
     },
   });
 
   const ics = buildIcs({
     calendarName: `Tee Times — ${user.name}`,
-    events,
+    events: events.map(({ simStatus, ...e }) => ({
+      ...e,
+      tentative: simStatus === "PENDING",
+    })),
   });
 
   return new Response(ics, {

@@ -13,6 +13,7 @@ import { getWeatherForTeeTime } from "@/lib/weather";
 import { AutoRefresh } from "../auto-refresh";
 import { WhatToExpect, WhatToExpectSpinner } from "./what-to-expect";
 import { MyStatusBar } from "./my-status-bar";
+import { SimHostPanel } from "./sim-host-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,7 @@ export default async function TeeTimeDetailPage({
     where: { id },
     include: {
       creator: { select: { id: true, name: true } },
+      simVenue: { select: { host: { select: { id: true, name: true } } } },
       members: {
         include: {
           user: { select: { id: true, name: true } },
@@ -62,6 +64,11 @@ export default async function TeeTimeDetailPage({
   const currentUserMembership = teeTime.members.find(
     (m) => m.userId === session.user.id
   );
+
+  // Hosted sim night: the host's say-so decides whether it's happening.
+  const simHost = teeTime.simStatus != null ? teeTime.simVenue?.host ?? null : null;
+  const isSimHost = simHost?.id === session.user.id;
+  const calledOff = teeTime.simStatus === "CANCELLED";
 
   const confirmedCount = teeTime.members.filter((m) => m.confirmed).length;
   // Tournaments have null partySize (unlimited) — no over-capacity concept.
@@ -100,7 +107,8 @@ export default async function TeeTimeDetailPage({
       )}
 
       <header className="space-y-2">
-        <h1 className="text-2xl font-bold">
+        <h1 className={`text-2xl font-bold ${calledOff ? "line-through opacity-60" : ""}`}>
+          {teeTime.type === "SIM" && <span aria-hidden>🖥️ </span>}
           {teeTime.type === "TOURNAMENT" && teeTime.name
             ? teeTime.name
             : teeTime.course}
@@ -111,7 +119,10 @@ export default async function TeeTimeDetailPage({
           </p>
         )}
         <p className="text-sm text-gray-600 dark:text-gray-300">
-          {formatDateTime(teeTime.teeOffAt)} — booked by {teeTime.creator.name}
+          {formatDateTime(teeTime.teeOffAt)} —{" "}
+          {simHost && teeTime.creator.id === simHost.id
+            ? `hosted by ${simHost.name}`
+            : `booked by ${teeTime.creator.name}`}
         </p>
         <div className="flex flex-wrap items-center gap-2">
           {teeTime.type === "TOURNAMENT" ? (
@@ -152,10 +163,12 @@ export default async function TeeTimeDetailPage({
               )}
             </>
           )}
-          <Countdown
-            teeOffAt={teeTime.teeOffAt.toISOString()}
-            className="rounded-full bg-emerald-50 dark:bg-emerald-900/30 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300"
-          />
+          {!calledOff && (
+            <Countdown
+              teeOffAt={teeTime.teeOffAt.toISOString()}
+              className="rounded-full bg-emerald-50 dark:bg-emerald-900/30 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300"
+            />
+          )}
           {weather && <WeatherChip weather={weather} />}
         </div>
         {coords && (
@@ -179,7 +192,16 @@ export default async function TeeTimeDetailPage({
         )}
       </header>
 
-      {currentUserMembership && !isPastTeeTime && (
+      {simHost && teeTime.simStatus && !isPastTeeTime && (
+        <SimHostPanel
+          teeTimeId={teeTime.id}
+          status={teeTime.simStatus}
+          hostName={simHost.name}
+          isHost={isSimHost}
+        />
+      )}
+
+      {currentUserMembership && !isPastTeeTime && !calledOff && (
         <MyStatusBar
           teeTimeId={teeTime.id}
           userId={session.user.id}
@@ -221,7 +243,7 @@ export default async function TeeTimeDetailPage({
         )}
       </section>
 
-      {!isCurrentUserMember && !isPastTeeTime && (
+      {!isCurrentUserMember && !isPastTeeTime && !calledOff && (
         <JoinButton teeTimeId={teeTime.id} userId={session.user.id} />
       )}
 
@@ -238,7 +260,17 @@ export default async function TeeTimeDetailPage({
         >
           Edit
         </Link>
-        <DeleteButton teeTimeId={teeTime.id} />
+        {/* A hosted sim night is the host's to call off (panel above); the
+            requester can still withdraw a request the host hasn't answered. */}
+        {!simHost ? (
+          <DeleteButton teeTimeId={teeTime.id} />
+        ) : (
+          teeTime.simStatus === "PENDING" &&
+          !isSimHost &&
+          teeTime.creator.id === session.user.id && (
+            <DeleteButton teeTimeId={teeTime.id} label="Withdraw request" />
+          )
+        )}
       </div>
       <AutoRefresh />
     </main>

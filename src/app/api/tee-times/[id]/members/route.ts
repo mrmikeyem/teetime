@@ -37,6 +37,12 @@ export async function POST(
   if (!teeTime) {
     return NextResponse.json({ error: "Tee time not found" }, { status: 404 });
   }
+  if (teeTime.simStatus === "CANCELLED") {
+    return NextResponse.json(
+      { error: "The host called this sim night off" },
+      { status: 409 }
+    );
+  }
 
   if (userId) {
     const user = await prisma.user.findUnique({ where: { id: userId } });

@@ -162,6 +162,25 @@ and are served from the imported cache forever (`isLegacyApiId`). Search
 results carry tee COUNTS only — never cache them as course details. The hourly cron's orphan-guest sweep MUST
 keep skipping guests with a `simPlayer` (cascade would wipe their list).
 
+**Sim nights**: `TeeTime.type = SIM` + a `SimVenue` (Brice's Garage,
+Albatros). The venue IS the course (no geocode → no weather anywhere).
+A venue with a `hostUserId` is someone's house — everything there is the
+host's call, via `lib/sim-nights.ts`: the host's own bookings start
+CONFIRMED; anyone else's start PENDING (host gets It's on / Not this time
+on email links `sim_on`/`sim_off`, bell inline buttons, and the detail
+page); a non-host moving the time sends it back to PENDING; only the host
+cancels, and cancelling keeps the row as CANCELLED (DELETE by the host =
+cancel) so the group sees it and the standing night isn't re-proposed.
+The reminders cron calls `proposeStandingSimNights` every tick: from
+Monday of the week, the venue's standing night is created PENDING for the
+host (idempotent on venue+date). While PENDING/CANCELLED a night gets no
+`notifyNewTeeTime` broadcast (guarded inside it) and no reminders; the
+ICS feed marks PENDING tentative and drops CANCELLED. No host = books
+like a normal course (`simStatus` null). Host + standing night are set at
+`/admin/sim-venues`. Gotcha: filter "not cancelled" as
+`OR [{simStatus:null},{simStatus:{not:"CANCELLED"}}]` — a bare `NOT`
+drops every null-status (i.e. every golf) row.
+
 **Weather**: `lib/weather.ts` (Open-Meteo geocode + forecast, cached via
 `next: { revalidate }`) and `lib/weather-summary.ts`, which calls Claude
 (`claude-haiku-4-5` via `@anthropic-ai/sdk`, `ANTHROPIC_API_KEY` in env) to
