@@ -150,7 +150,10 @@ math lives ONCE in `lib/sim-wheel.ts` (client-safe) — the browser draws with
 it and `lib/sim-actions.ts` `resolveSpin` recomputes with it server-side, so
 Play/Skip (tally bumps + log + remove-from-EVERY-list) is one transaction.
 Session state (skips, by-person mode) is per-tab sessionStorage, never DB.
-Course lists are personal: only the player edits their own list (admins
+Every registered member with sim access (not `EVENT` role, invite
+completed) IS a player — `ensureMemberPlayers` creates rows on /sim load;
+members are never removed (the checkbox = playing this round), only guests
+(admin-only). Course lists are personal: only the player edits their own list (admins
 included — `canEditList` in `lib/sim.ts`, enforced in the API and mirrored
 in the UI); admins manage guest lists. Tallies/checks/links stay group-wide.
 Access = `User.simAccess` (default on, toggled on `/admin`), read from the DB

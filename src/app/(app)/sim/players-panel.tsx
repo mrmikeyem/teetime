@@ -33,7 +33,6 @@ export function PlayersPanel({
   settings,
   skipped,
   adjustTallies,
-  memberCandidates,
   onInfo,
 }: {
   players: HubPlayer[];
@@ -42,16 +41,15 @@ export function PlayersPanel({
   settings: WheelSettings;
   skipped: ReadonlySet<string>;
   adjustTallies: boolean;
-  memberCandidates: { id: string; name: string }[];
   onInfo: (apiId: string) => void;
 }) {
   const router = useRouter();
   // Mirrors canEditList / canRemovePlayer in lib/sim.ts (the API enforces it).
   const canEdit = (p: HubPlayer) => (p.userId ? p.userId === viewerId : isAdmin);
-  const canRemove = (p: HubPlayer) => isAdmin || p.userId === viewerId;
+  const canRemove = (p: HubPlayer) => isAdmin && p.isGuest;
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [error, setError] = useState("");
-  const [deleting, setDeleting] = useState<HubPlayer | null>(null);
+  const [removing, setRemoving] = useState<HubPlayer | null>(null);
   const [linking, setLinking] = useState<HubEntry | null>(null);
 
   // Which list rows actually feed the wheel right now (checked, not skipped,
@@ -71,11 +69,11 @@ export function PlayersPanel({
   return (
     <section className="sim-card p-4">
       <h2 className="sim-heading mb-3 text-lg font-bold">Players &amp; Courses</h2>
-      <AddPlayer candidates={memberCandidates} run={run} />
+      <AddGuest run={run} />
       <ErrorNote error={error} />
 
       <div className="mt-3 space-y-2">
-        {players.length === 0 && <p className="sim-muted py-4 text-center text-sm">No players added yet</p>}
+        {players.length === 0 && <p className="sim-muted py-4 text-center text-sm">No players yet</p>}
         <AnimatePresence initial={false}>
           {players.map((p) => (
             <motion.div
@@ -105,7 +103,7 @@ export function PlayersPanel({
                 skipped={skipped}
                 onWheel={onWheel}
                 run={run}
-                onDelete={() => setDeleting(p)}
+                onRemove={() => setRemoving(p)}
                 onInfo={onInfo}
                 onLink={setLinking}
               />
@@ -114,7 +112,7 @@ export function PlayersPanel({
         </AnimatePresence>
       </div>
 
-      <DeletePlayerModal player={deleting} onClose={() => setDeleting(null)} run={run} />
+      <RemoveGuestModal player={removing} onClose={() => setRemoving(null)} run={run} />
       <CourseSearchModal
         open={linking !== null}
         onClose={() => setLinking(null)}
@@ -132,29 +130,21 @@ export function PlayersPanel({
   );
 }
 
-function AddPlayer({
-  candidates,
+/** Members are on the wheel automatically — this only adds guests. */
+function AddGuest({
   run,
 }: {
-  candidates: { id: string; name: string }[];
   run: (p: Promise<{ ok: boolean; error?: string }>) => Promise<boolean>;
 }) {
-  const [pick, setPick] = useState("");
   const [guestName, setGuestName] = useState("");
   const [busy, setBusy] = useState(false);
-  const isGuest = pick === "__guest";
 
   async function add() {
-    if (!pick || busy) return;
+    if (!guestName.trim() || busy) return;
     setBusy(true);
-    const ok = await run(
-      simApi("/api/sim/players", "POST", isGuest ? { guestName } : { userId: pick })
-    );
+    const ok = await run(simApi("/api/sim/players", "POST", { guestName }));
     setBusy(false);
-    if (ok) {
-      setPick("");
-      setGuestName("");
-    }
+    if (ok) setGuestName("");
   }
 
   return (
@@ -165,29 +155,13 @@ function AddPlayer({
         add();
       }}
     >
-      <select className="sim-input flex-1" value={pick} onChange={(e) => setPick(e.target.value)}>
-        <option value="">Add player…</option>
-        {candidates.map((c) => (
-          <option key={c.id} value={c.id}>
-            {c.name}
-          </option>
-        ))}
-        <option value="__guest">+ Guest (not a member)</option>
-      </select>
-      {isGuest && (
-        <input
-          autoFocus
-          className="sim-input flex-1"
-          placeholder="Guest name"
-          value={guestName}
-          onChange={(e) => setGuestName(e.target.value)}
-        />
-      )}
-      <button
-        type="submit"
-        className="sim-btn sim-btn-primary"
-        disabled={!pick || busy || (isGuest && !guestName.trim())}
-      >
+      <input
+        className="sim-input flex-1"
+        placeholder="Add a guest (not a member)…"
+        value={guestName}
+        onChange={(e) => setGuestName(e.target.value)}
+      />
+      <button type="submit" className="sim-btn sim-btn-primary" disabled={busy || !guestName.trim()}>
         Add
       </button>
     </form>
@@ -206,7 +180,7 @@ function PlayerCard({
   skipped,
   onWheel,
   run,
-  onDelete,
+  onRemove,
   onInfo,
   onLink,
 }: {
@@ -221,7 +195,7 @@ function PlayerCard({
   skipped: ReadonlySet<string>;
   onWheel: Set<string>;
   run: (p: Promise<{ ok: boolean; error?: string }>) => Promise<boolean>;
-  onDelete: () => void;
+  onRemove: () => void;
   onInfo: (apiId: string) => void;
   onLink: (entry: HubEntry) => void;
 }) {
@@ -289,8 +263,8 @@ function PlayerCard({
           <span className="sim-muted font-normal">({player.list.length})</span>
         </button>
         {!checked && canRemove && (
-          <button type="button" className="sim-btn sim-btn-danger px-2 py-1 text-xs" onClick={onDelete}>
-            Delete
+          <button type="button" className="sim-btn sim-btn-danger px-2 py-1 text-xs" onClick={onRemove}>
+            Remove
           </button>
         )}
         <motion.button
@@ -496,7 +470,7 @@ function CourseRow({
   );
 }
 
-function DeletePlayerModal({
+function RemoveGuestModal({
   player,
   onClose,
   run,
@@ -513,7 +487,7 @@ function DeletePlayerModal({
         setTyped("");
         onClose();
       }}
-      title="⚠️ Delete player"
+      title="⚠️ Remove guest"
     >
       {player && (
         <div className="space-y-3 text-sm">
@@ -522,9 +496,9 @@ function DeletePlayerModal({
             {player.list.length === 1 ? "" : "s"} from the wheel? Their play history stays in the log.
           </p>
           <p className="font-semibold" style={{ color: "var(--sim-danger)" }}>
-            Type DELETE to confirm:
+            Type REMOVE to confirm:
           </p>
-          <input className="sim-input" value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="DELETE" />
+          <input className="sim-input" value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="REMOVE" />
           <div className="flex justify-end gap-2">
             <button
               type="button"
@@ -539,7 +513,7 @@ function DeletePlayerModal({
             <button
               type="button"
               className="sim-btn sim-btn-danger"
-              disabled={typed !== "DELETE"}
+              disabled={typed !== "REMOVE"}
               onClick={async () => {
                 const id = player.id;
                 setTyped("");
@@ -547,7 +521,7 @@ function DeletePlayerModal({
                 await run(simApi(`/api/sim/players/${id}`, "DELETE"));
               }}
             >
-              Delete
+              Remove
             </button>
           </div>
         </div>

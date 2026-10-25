@@ -259,15 +259,26 @@ export function Wheel({
       animate={{ opacity: faded ? 0 : 1 }}
       transition={{ duration: faded ? 0.35 : 0.5 }}
     >
-      {/* Pointer */}
+      {/* Pointer — a golf tee, point down into the wheel. Pivots at the
+          head so slice pegs flick the point. */}
       <motion.div
-        className="absolute left-1/2 top-[-10px] z-10 -ml-[15px] origin-top drop-shadow-md"
+        className="absolute left-1/2 top-[-23px] z-10 -ml-[15px] origin-top drop-shadow-md"
         style={{ rotate: pointerKick }}
         aria-hidden
       >
-        <svg width="30" height="38" viewBox="0 0 30 38">
-          <path d="M15 37 L2 6 Q15 -2 28 6 Z" fill="var(--sim-pointer)" stroke="rgba(0,0,0,0.35)" strokeWidth="1.5" />
-          <circle cx="15" cy="10" r="3.2" fill="rgba(0,0,0,0.25)" />
+        <svg width="30" height="51" viewBox="0 0 30 51" overflow="visible">
+          <path
+            d="M1.5 4 A13.5 3 0 0 1 28.5 4 Q27.5 10 17.6 15.5 L17 40 L15 50 L13 40 L12.4 15.5 Q2.5 10 1.5 4 Z"
+            fill="var(--sim-pointer)"
+            stroke="rgba(0,0,0,0.35)"
+            strokeWidth="1.2"
+            strokeLinejoin="round"
+          />
+          {/* The cup, seen from just above. */}
+          <ellipse cx="15" cy="4.2" rx="11.5" ry="2.1" fill="rgba(0,0,0,0.22)" />
+          {/* Shading on the shank so it reads as round. */}
+          <path d="M16 17 L15.6 39" stroke="rgba(0,0,0,0.18)" strokeWidth="1.6" strokeLinecap="round" />
+          <path d="M13.8 17 L14 38" stroke="rgba(255,255,255,0.4)" strokeWidth="1" strokeLinecap="round" />
         </svg>
       </motion.div>
 
