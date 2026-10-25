@@ -224,7 +224,7 @@ export function SimHub({
                 </div>
               </div>
 
-              <div className="py-4">
+              <div className="pb-4 pt-7">
                 <Wheel
                   slices={slices}
                   colors={colors}
@@ -281,7 +281,6 @@ export function SimHub({
               settings={view.settings}
               skipped={skipped}
               adjustTallies={adjustTallies}
-              memberCandidates={data.memberCandidates}
               onInfo={setInfoApiId}
             />
             <PlayLog plays={view.plays} players={activePlayers} onInfo={setInfoApiId} />

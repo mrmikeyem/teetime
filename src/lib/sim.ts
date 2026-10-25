@@ -47,9 +47,45 @@ export function canEditList(viewer: SimViewer, player: { userId: string | null; 
   return viewer.isAdmin;
 }
 
-/** Removing a player wipes their list: admins, or the player themselves. */
+/**
+ * Members are never removed — every registered member with sim access IS a
+ * player (see ensureMemberPlayers), and the "playing" check is the per-round
+ * control. Only guests can be removed, and only by an admin.
+ */
 export function canRemovePlayer(viewer: SimViewer, player: { userId: string | null }): boolean {
-  return viewer.isAdmin || player.userId === viewer.id;
+  return viewer.isAdmin && !player.userId;
+}
+
+/**
+ * Which members are on the wheel: sim access on, not an event-only guest,
+ * and invite completed (a pending invitee's name is still their email).
+ */
+const wheelMemberWhere = {
+  simAccess: true,
+  role: { not: "EVENT" },
+  NOT: { name: { contains: "@" } },
+} satisfies Prisma.UserWhereInput;
+
+/**
+ * Give every eligible member a player row (empty list, unchecked) and bring
+ * back any member archived under the old remove-a-player flow. Idempotent —
+ * the /sim page calls it on every load, so new invitees just appear.
+ */
+export async function ensureMemberPlayers(db: Db = prisma) {
+  const missing = await db.user.findMany({
+    where: { ...wheelMemberWhere, simPlayer: null },
+    select: { id: true },
+  });
+  if (missing.length) {
+    await db.simPlayer.createMany({
+      data: missing.map((u) => ({ userId: u.id })),
+      skipDuplicates: true,
+    });
+  }
+  await db.simPlayer.updateMany({
+    where: { archivedAt: { not: null }, user: wheelMemberWhere },
+    data: { archivedAt: null },
+  });
 }
 
 export async function getSimSettings(db: Db = prisma): Promise<WheelSettings> {
@@ -86,7 +122,9 @@ export function playerName(p: {
 
 async function loadPlayerRows(db: Db): Promise<PlayerRow[]> {
   return db.simPlayer.findMany({
-    where: { archivedAt: null },
+    // Guests, plus members still eligible — losing sim access (or becoming
+    // event-only) takes someone off the wheel without touching their list.
+    where: { archivedAt: null, OR: [{ guestId: { not: null } }, { user: wheelMemberWhere }] },
     orderBy: { createdAt: "asc" },
     include: playerInclude,
   });
@@ -114,7 +152,8 @@ function toWheelPlayer(p: PlayerRow): WheelPlayer {
 
 /** Everything the /sim page renders, serialized for the client. */
 export async function getSimHub() {
-  const [rows, settings, plays, users] = await Promise.all([
+  await ensureMemberPlayers();
+  const [rows, settings, plays] = await Promise.all([
     loadPlayerRows(prisma),
     getSimSettings(),
     prisma.simPlay.findMany({
@@ -132,12 +171,6 @@ export async function getSimHub() {
           },
         },
       },
-    }),
-    // Candidates for "add player": registered members not already playing.
-    prisma.user.findMany({
-      where: { NOT: { name: { contains: "@" } } },
-      orderBy: { name: "asc" },
-      select: { id: true, name: true, simPlayer: { select: { archivedAt: true } } },
     }),
   ]);
 
@@ -191,9 +224,6 @@ export async function getSimHub() {
         .map((x) => ({ playerId: x.playerId, name: playerName(x.player) })),
     })),
     lastPlayed,
-    memberCandidates: users
-      .filter((u) => !u.simPlayer || u.simPlayer.archivedAt)
-      .map((u) => ({ id: u.id, name: u.name })),
   };
 }
 

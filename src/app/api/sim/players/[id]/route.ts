@@ -27,8 +27,9 @@ export async function PATCH(
 }
 
 /**
- * Remove a player and their course list. Players with play history are
- * archived (the log keeps their name); others are deleted outright.
+ * Remove a guest and their course list (members are never removed — see
+ * canRemovePlayer). Guests with play history are archived (the log keeps
+ * their name); others are deleted outright.
  */
 export async function DELETE(
   _req: Request,
@@ -46,7 +47,7 @@ export async function DELETE(
     return NextResponse.json({ error: "Player not found" }, { status: 404 });
   }
   if (!canRemovePlayer(viewer, player)) {
-    return NextResponse.json({ error: "Only an admin can remove another player" }, { status: 403 });
+    return NextResponse.json({ error: "Only an admin can remove a guest" }, { status: 403 });
   }
 
   await prisma.$transaction(async (tx) => {
